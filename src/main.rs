@@ -11,7 +11,7 @@ struct Point {
 }
 
 #[derive(Debug)]
-struct insert_point_result {
+struct InsertPointResult {
     lda: f32,
     best_a: Point,
     best_c: Point,
@@ -134,17 +134,33 @@ fn point_line(a: Point, b: Point, c: Point) -> f32 {
 
     return (diff_x * diff_x + diff_y * diff_y).sqrt()
 }
+//Much faster approximation
+fn fast_sqrt(x: f32) -> f32 {
+    if x == 0.0 {
+        return 0.0;
+    }
+
+    let x_half = 0.5 * x;
+    let mut i: u32 = x.to_bits();
+    i = 0x1fbd1df5 + (i >> 1); 
+    let mut y = f32::from_bits(i);
+
+    y = y * (1.5 - x_half * y * y);
+    
+    return x * y;
+}
+
 
 
 //Much faster approxomation
 #[inline(always)]
 fn fast_acos(x: f32) -> f32 {
-    let x_abs = x.abs();
+    let x_abs = f32::from_bits(x.to_bits() & 0x7FFF_FFFF);
     let sqrt_term = (1.0 - x_abs).sqrt();
     let base = ((-0.0187293 * x_abs + 0.0742610) * x_abs - 0.2121144) * x_abs + 1.5707288;
     let ret = base * sqrt_term;
 
-    if x < 0.0 {
+    if x.is_sign_negative() {
         return std::f32::consts::PI - ret;
     } else {
         return ret;
@@ -165,7 +181,7 @@ fn lda(a: &Point, b: &Point, c: &Point) -> f32 {
     return acos / dist;
 }
 
-fn insert_point(hull: &[Point], inner_points: &[Point]) -> insert_point_result {     
+fn insert_point(hull: &[Point], inner_points: &[Point]) -> InsertPointResult {     
     inner_points.par_iter().map(|&c| {             
         let mut best_lda = -1.0;             
         let mut best_a = Point { x: 0.0, y: 0.0 };              
@@ -183,14 +199,14 @@ fn insert_point(hull: &[Point], inner_points: &[Point]) -> insert_point_result {
             best_lda = final_lda;                 
             best_a = hull[hull.len() - 1];             
         }              
-        insert_point_result {                 
+        InsertPointResult {                 
             lda: best_lda,                 
             best_a: best_a,                 
             best_c: c,             
         }         
     })         
     .reduce(             
-        || insert_point_result {                 
+        || InsertPointResult {                 
             lda: -1.0,                 
             best_a: Point { x: 0.0, y: 0.0 },                 
             best_c: Point { x: 0.0, y: 0.0 },             
@@ -199,7 +215,7 @@ fn insert_point(hull: &[Point], inner_points: &[Point]) -> insert_point_result {
     )}
 
 fn update_hull(
-    result: &insert_point_result,
+    result: &InsertPointResult,
     hull: &mut Vec<Point>,
     inner_hull: &mut Vec<Point>,
 ) {
@@ -223,6 +239,7 @@ fn path_dist(path: &[Point]) -> f32{
     return sum;
 }
 fn main() {
+    //When I remove num_threads it does
     rayon::ThreadPoolBuilder::new().num_threads(20).build_global().unwrap();
    
     let points: Vec<Point> = parse_file(&read_file());
