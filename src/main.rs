@@ -137,20 +137,20 @@ fn point_line(a: Point, b: Point, c: Point) -> f32 {
 
 
 //Much faster approxomation
+#[inline(always)]
 fn fast_acos(x: f32) -> f32 {
-    //Set sign bit to positive (same as .abs but slightly faster)
-    let x_abs = f32::from_bits(x.to_bits() & !0x80000000u32);
-    let ret = (-0.0187293 * x_abs + 0.0742610) * x_abs - 0.2121144;
-    let ret = ret * x_abs + 1.5707288;
-    let ret = ret * (1.0 - x_abs).sqrt();
-    
-    // Use copysign to avoid branching
-    if x.is_sign_negative() {
+    let x_abs = x.abs();
+    let sqrt_term = (1.0 - x_abs).sqrt();
+    let base = ((-0.0187293 * x_abs + 0.0742610) * x_abs - 0.2121144) * x_abs + 1.5707288;
+    let ret = base * sqrt_term;
+
+    if x < 0.0 {
         return std::f32::consts::PI - ret;
     } else {
         return ret;
     }
 }
+
 
 fn lda(a: &Point, b: &Point, c: &Point) -> f32 {
     let ab = calc_dist(*a, *b);
