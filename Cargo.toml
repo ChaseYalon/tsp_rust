@@ -1,0 +1,29 @@
+[package]
+name = "tsp_rust"
+version = "0.2.0"
+edition = "2024"
+
+[dependencies]
+indicatif = "0.17.11"
+rand = "0.8"
+rayon = "1.10.0"
+
+
+
+[profile.dev]
+debug = 2
+
+[profile.release]
+debug = true
+debug-assertions = false
+overflow-checks = false
+panic = 'abort'
+strip = false
+#Performance stuff
+codegen-units = 1
+opt-level = 3
+lto = "fat"
+
+#Examine accuracy
+#rustflags = ["-C", "llvm-args=-enable-unsafe-fp-math"]
+
