@@ -1,33 +1,24 @@
-use std::env;
-use std::fs;
 use std::time::Instant;
 use indicatif::ProgressBar;
 use rayon::prelude::*;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-struct Point {
-    x: f32,
-    y: f32,
-}
+mod reader;
+mod shared;
 
 #[derive(Debug)]
 struct InsertPointResult {
     lda: f32,
-    best_a: Point,
-    best_c: Point,
+    best_a: shared::Point,
+    best_c: shared::Point,
 }
 
-impl Point {
-    fn cross(o: &Point, a: &Point, b: &Point) -> f32 {
-        return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
-    }
-}
 
-fn calc_dist(a: Point, b: Point) -> f32 {
+
+fn calc_dist(a: shared::Point, b: shared::Point) -> f32 {
     return ((a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y)).sqrt();
 }
 
-fn convex_hull(points: &[Point]) -> Vec<Point> {
+fn convex_hull(points: &[shared::Point]) -> Vec<shared::Point> {
     let mut points = points.to_vec();
 
     if points.len() <= 1 {
@@ -42,7 +33,7 @@ fn convex_hull(points: &[Point]) -> Vec<Point> {
     let mut lower = Vec::new();
     for p in &points {
         while lower.len() >= 2
-            && Point::cross(&lower[lower.len() - 2], &lower[lower.len() - 1], p) <= 0.0
+            && shared::Point::cross(&lower[lower.len() - 2], &lower[lower.len() - 1], p) <= 0.0
         {
             lower.pop();
         }
@@ -52,7 +43,7 @@ fn convex_hull(points: &[Point]) -> Vec<Point> {
     let mut upper = Vec::new();
     for p in points.iter().rev() {
         while upper.len() >= 2
-            && Point::cross(&upper[upper.len() - 2], &upper[upper.len() - 1], p) <= 0.0
+            && shared::Point::cross(&upper[upper.len() - 2], &upper[upper.len() - 1], p) <= 0.0
         {
             upper.pop();
         }
@@ -67,53 +58,7 @@ fn convex_hull(points: &[Point]) -> Vec<Point> {
     return lower;
 }
 
-fn read_file() -> String {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        eprintln!("Usage: {} <filename>", args[0]);
-        std::process::exit(1);
-    }
-
-    let filename = &args[1];
-    return fs::read_to_string(filename).unwrap();
-}
-
-fn parse_num(input: &String) -> f32 {
-    // Rust handles scientific notation parsing directly, so:
-    return input.parse::<f32>().unwrap();
-}
-
-fn parse_file(file: &String) -> Vec<Point> {
-    let parts: Vec<&str> = file.split("NODE_COORD_SECTION").collect();
-    if parts.len() < 2 {
-        return vec![];
-    }
-    let file_contents_2 = parts[1];
-    let file_contents_3 = file_contents_2.split("EOF").next().unwrap_or("");
-
-    let lines: Vec<&str> = file_contents_3.lines().collect();
-    let mut to_return = Vec::new();
-
-    for line in lines {
-        let split: Vec<&str> = line.split_whitespace().collect();
-        if split.len() >= 3 {
-            to_return.push(Point {
-                x: parse_num(&split[1].to_string()),
-                y: parse_num(&split[2].to_string()),
-            });
-        }
-    }
-
-    return to_return;
-}
-
-fn vec_diff(a: &[Point], b: &[Point]) -> Vec<Point> {
-    return a.iter()
-        .filter(|item| !b.contains(item))
-        .cloned()
-        .collect();
-}
-fn point_line(a: Point, b: Point, c: Point) -> f32 {
+fn point_line(a: shared::Point, b: shared::Point, c: shared::Point) -> f32 {
     let dx = b.x - a.x;
     let dy = b.y - a.y;
     let line_length_squared = dx * dx + dy * dy;
@@ -134,22 +79,6 @@ fn point_line(a: Point, b: Point, c: Point) -> f32 {
 
     return (diff_x * diff_x + diff_y * diff_y).sqrt()
 }
-//Much faster approximation
-fn fast_sqrt(x: f32) -> f32 {
-    if x == 0.0 {
-        return 0.0;
-    }
-
-    let x_half = 0.5 * x;
-    let mut i: u32 = x.to_bits();
-    i = 0x1fbd1df5 + (i >> 1); 
-    let mut y = f32::from_bits(i);
-
-    y = y * (1.5 - x_half * y * y);
-    
-    return x * y;
-}
-
 
 
 //Much faster approxomation
@@ -168,7 +97,7 @@ fn fast_acos(x: f32) -> f32 {
 }
 
 
-fn lda(a: &Point, b: &Point, c: &Point) -> f32 {
+fn lda(a: &shared::Point, b: &shared::Point, c: &shared::Point) -> f32 {
     let ab = calc_dist(*a, *b);
     let bc = calc_dist(*b, *c);
     let ac = calc_dist(*a, *c);
@@ -181,10 +110,10 @@ fn lda(a: &Point, b: &Point, c: &Point) -> f32 {
     return acos / dist;
 }
 
-fn insert_point(hull: &[Point], inner_points: &[Point]) -> InsertPointResult {     
+fn insert_point(hull: &[shared::Point], inner_points: &[shared::Point]) -> InsertPointResult {     
     inner_points.par_iter().map(|&c| {             
         let mut best_lda = -1.0;             
-        let mut best_a = Point { x: 0.0, y: 0.0 };              
+        let mut best_a = shared::Point { x: 0.0, y: 0.0 };              
         for j in 0..(hull.len() - 1) {                 
             let a = hull[j];                 
             let b = hull[j + 1];                 
@@ -208,16 +137,16 @@ fn insert_point(hull: &[Point], inner_points: &[Point]) -> InsertPointResult {
     .reduce(             
         || InsertPointResult {                 
             lda: -1.0,                 
-            best_a: Point { x: 0.0, y: 0.0 },                 
-            best_c: Point { x: 0.0, y: 0.0 },             
+            best_a: shared::Point { x: 0.0, y: 0.0 },                 
+            best_c: shared::Point { x: 0.0, y: 0.0 },             
         },|a, b|
          if a.lda > b.lda { a } else { b },         
     )}
 
 fn update_hull(
     result: &InsertPointResult,
-    hull: &mut Vec<Point>,
-    inner_hull: &mut Vec<Point>,
+    hull: &mut Vec<shared::Point>,
+    inner_hull: &mut Vec<shared::Point>,
 ) {
     // Remove best_c from inner_hull
     if let Some(pos) = inner_hull.iter().position(|&p| p == result.best_c) {
@@ -230,7 +159,7 @@ fn update_hull(
         hull.insert(pos + 1, result.best_c);
     }
 }
-fn path_dist(path: &[Point]) -> f32{
+fn path_dist(path: &[shared::Point]) -> f32{
     let mut sum = 0.0;
     for i in 0 .. &path.len() - 1{
         sum += calc_dist(path[i], path[i+1]);
@@ -242,12 +171,12 @@ fn main() {
     //When I remove num_threads it does
     rayon::ThreadPoolBuilder::new().num_threads(20).build_global().unwrap();
    
-    let points: Vec<Point> = parse_file(&read_file());
+    let points: Vec<shared::Point> = reader::parse_file(&reader::read_file());
 
     let start = Instant::now();
 
     let mut hull = convex_hull(&points);
-    let mut inner_hull = vec_diff(&points, &hull);
+    let mut inner_hull = reader::vec_diff(&points, &hull);
     let pb = ProgressBar::new(inner_hull.len().try_into().unwrap());
     while inner_hull.len() > 0{
         let result = insert_point(&hull, &inner_hull);
