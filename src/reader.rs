@@ -8,7 +8,10 @@ pub fn read_file() -> String {
         eprintln!("Usage: {} <filename>", args[0]);
         std::process::exit(1);
     }
-
+    if &args[1] == "help" || &args[1] == "--help" || &args[1] == "-help"{
+        println!("To use run ./tsp.exe <PATH TO .tsp FILE>");
+        std::process::exit(1);
+    }
     let filename = &args[1];
     return fs::read_to_string(filename).unwrap();
 }

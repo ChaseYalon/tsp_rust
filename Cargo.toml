@@ -2,6 +2,11 @@
 name = "tsp_rust"
 version = "0.2.0"
 edition = "2024"
+build = "build.rs"
+
+[build-dependencies]
+winres = "0.1.12"
+
 
 [dependencies]
 indicatif = "0.17.11"

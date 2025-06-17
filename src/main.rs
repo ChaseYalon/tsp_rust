@@ -64,11 +64,10 @@ fn convex_hull(points: &[shared::Point]) -> Vec<shared::Point> {
 }
 
 
-fn point_line(a: shared::Point, b: shared::Point, c: shared::Point) -> f32 {
+fn point_line(a: &shared::Point, b: &shared::Point, c: &shared::Point) -> f32 {
     let dx = b.x - a.x;
     let dy = b.y - a.y;
     let line_length_squared = dx * dx + dy * dy;
-
 
     if line_length_squared == 0.0 {
         let dx = c.x - a.x;
@@ -76,19 +75,17 @@ fn point_line(a: shared::Point, b: shared::Point, c: shared::Point) -> f32 {
         return (dx * dx + dy * dy).sqrt();
     }
 
-
     let mut t = ((c.x - a.x) * dx + (c.y - a.y) * dy) / line_length_squared;
     t = t.clamp(0.0, 1.0);
-
 
     let proj_x = a.x + t * dx;
     let proj_y = a.y + t * dy;
     let diff_x = c.x - proj_x;
     let diff_y = c.y - proj_y;
 
-
     return (diff_x * diff_x + diff_y * diff_y).sqrt()
 }
+
 
 
 
@@ -122,7 +119,7 @@ fn lda(a: &shared::Point, b: &shared::Point, c: &shared::Point) -> f32 {
     let denominator = 2.0 * bc * ac;
     let cosine = numerator / denominator;
     let acos = fast_acos(cosine);
-    let dist = point_line(*a, *b, *c);
+    let dist = point_line(a, b, c);
     return acos / dist;
 }
 
