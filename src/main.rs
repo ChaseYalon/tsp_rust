@@ -95,24 +95,18 @@ fn point_line(a: &shared::Point, b: &shared::Point, c: &shared::Point) -> f32 {
 fn fast_acos(x: f32) -> f32 {
     let x_abs = f32::from_bits(x.to_bits() & 0x7FFF_FFFF);
     let sqrt_term = (1.0 - x_abs).sqrt();
-
-    // Use fma to improve both performance and accuracy
-    let base = x_abs.mul_add(
-        x_abs.mul_add(
-            x_abs.mul_add(-0.0187293, 0.0742610),
-            -0.2121144,
-        ),
-        1.5707288,
-    );
-
+    let base = ((-0.0187293 * x_abs + 0.0742610) * x_abs - 0.2121144) * x_abs + 1.5707288;
     let ret = base * sqrt_term;
 
+
     if x.is_sign_negative() {
-        std::f32::consts::PI - ret
+        return std::f32::consts::PI - ret;
     } else {
-        ret
+        return ret;
     }
 }
+
+
 
 
 fn lda(a: &shared::Point, b: &shared::Point, c: &shared::Point) -> f32 {
