@@ -17,7 +17,7 @@ struct InsertPointResult {
     best_a: shared::Point,
     best_c: shared::Point,
 }
-
+#[inline(always)]
 fn calc_dist(a: shared::Point, b: shared::Point) -> f32 {
     let dx = a.x - b.x;
     let dy = a.y - b.y;
