@@ -1,0 +1,8 @@
+[build]
+rustflags = [
+  "-C", "target-cpu=native",
+  "-C", "target-feature=+fma",
+  "-C", "debuginfo=2",
+  "-C", "force-frame-pointers=yes",
+  "-C", "debuginfo=2"
+]
