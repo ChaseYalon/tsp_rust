@@ -148,10 +148,7 @@ fn insert_point(hull: &[shared::Point], inner_points: &[shared::Point]) -> Inser
         let c_y = SimdF32::from_array(c_y_arr);
 
         let mut best_lda = SimdF32::splat(-1.0);
-        let mut best_a_x = SimdF32::splat(0.0);
-        let mut best_a_y = SimdF32::splat(0.0);
-        let mut best_c_x = SimdF32::splat(0.0);
-        let mut best_c_y = SimdF32::splat(0.0);
+        let mut best_idx = Simd::<i32, 8>::splat(-1);
 
         for j in 0..(hull_len - 1) {
             let a_x = SimdF32::splat(hull_x[j]);
@@ -163,25 +160,23 @@ fn insert_point(hull: &[shared::Point], inner_points: &[shared::Point]) -> Inser
 
             let mask = curr_lda.simd_gt(best_lda);
             best_lda = mask.select(curr_lda, best_lda);
-            best_a_x = mask.select(a_x, best_a_x);
-            best_a_y = mask.select(a_y, best_a_y);
-            best_c_x = mask.select(c_x, best_c_x);
-            best_c_y = mask.select(c_y, best_c_y);
+            best_idx = mask.select(Simd::splat(j as i32), best_idx);
+
         }
 
         // Wraparound edge
-        let a_x = SimdF32::splat(hull_x[hull_len - 1]);
-        let a_y = SimdF32::splat(hull_y[hull_len - 1]);
+        let j = hull_len - 1;
+        let a_x = SimdF32::splat(hull_x[j]);
+        let a_y = SimdF32::splat(hull_y[j]);
         let b_x = SimdF32::splat(hull_x[0]);
         let b_y = SimdF32::splat(hull_y[0]);
 
         let curr_lda = lda(a_x, a_y, b_x, b_y, c_x, c_y);
         let mask = curr_lda.simd_gt(best_lda);
-        best_lda = mask.select(curr_lda, best_lda);
-        best_a_x = mask.select(a_x, best_a_x);
-        best_a_y = mask.select(a_y, best_a_y);
-        best_c_x = mask.select(c_x, best_c_x);
-        best_c_y = mask.select(c_y, best_c_y);
+        if mask.any() {
+            best_lda = mask.select(curr_lda, best_lda);
+            best_idx = mask.select(Simd::splat(j as i32), best_idx);
+        }
 
         let mut best_lane = 0;
         let mut best_lda_scalar = best_lda[0];
@@ -192,15 +187,18 @@ fn insert_point(hull: &[shared::Point], inner_points: &[shared::Point]) -> Inser
             }
         }
 
+        let idx = best_idx[best_lane] as usize;
+        let next_idx = (idx + 1) % hull_len;
+
         InsertPointResult {
             lda: best_lda_scalar,
             best_a: shared::Point {
-                x: best_a_x[best_lane],
-                y: best_a_y[best_lane],
+                x: hull_x[idx],
+                y: hull_y[idx],
             },
             best_c: shared::Point {
-                x: best_c_x[best_lane],
-                y: best_c_y[best_lane],
+                x: c_x[best_lane],
+                y: c_y[best_lane],
             },
         }
     })
