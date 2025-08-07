@@ -22,13 +22,28 @@ struct InsertPointResult {
 
 fn insert_point(hull: &[shared::Point], inner_points: &[shared::Point]) -> InsertPointResult {
     let hull_len = hull.len();
-    let hull_x: Vec<f32> = hull.iter().map(|p| p.x).collect();
-    let hull_y: Vec<f32> = hull.iter().map(|p| p.y).collect();
+
+    // Precompute and cache A–B segments (wraparound included)
+    let mut a_x_cache = Vec::with_capacity(hull_len);
+    let mut a_y_cache = Vec::with_capacity(hull_len);
+    let mut b_x_cache = Vec::with_capacity(hull_len);
+    let mut b_y_cache = Vec::with_capacity(hull_len);
+
+    for j in 0..hull_len {
+        let a = hull[j];
+        let b = hull[(j + 1) % hull_len];
+        a_x_cache.push(a.x);
+        a_y_cache.push(a.y);
+        b_x_cache.push(b.x);
+        b_y_cache.push(b.y);
+    }
 
     let chunk_size = 8;
 
     inner_points.par_chunks(chunk_size).map(|chunk| {
         let len = chunk.len();
+
+        // Load chunk into SIMD vectors
         let mut c_x_arr = [0.0; 8];
         let mut c_y_arr = [0.0; 8];
         for i in 0..len {
@@ -41,33 +56,20 @@ fn insert_point(hull: &[shared::Point], inner_points: &[shared::Point]) -> Inser
         let mut best_lda = SimdF32::splat(-1.0);
         let mut best_idx = Simd::<i32, 8>::splat(-1);
 
-        for j in 0..(hull_len - 1) {
-            let a_x = SimdF32::splat(hull_x[j]);
-            let a_y = SimdF32::splat(hull_y[j]);
-            let b_x = SimdF32::splat(hull_x[j + 1]);
-            let b_y = SimdF32::splat(hull_y[j + 1]);
+        for j in 0..hull_len {
+            let a_x = SimdF32::splat(a_x_cache[j]);
+            let a_y = SimdF32::splat(a_y_cache[j]);
+            let b_x = SimdF32::splat(b_x_cache[j]);
+            let b_y = SimdF32::splat(b_y_cache[j]);
 
             let curr_lda = math::lda(a_x, a_y, b_x, b_y, c_x, c_y);
 
             let mask = curr_lda.simd_gt(best_lda);
             best_lda = mask.select(curr_lda, best_lda);
             best_idx = mask.select(Simd::splat(j as i32), best_idx);
-
         }
 
-        // Wraparound edge
-        let j = hull_len - 1;
-        let a_x = SimdF32::splat(hull_x[j]);
-        let a_y = SimdF32::splat(hull_y[j]);
-        let b_x = SimdF32::splat(hull_x[0]);
-        let b_y = SimdF32::splat(hull_y[0]);
-
-        let curr_lda = math::lda(a_x, a_y, b_x, b_y, c_x, c_y);
-        let mask = curr_lda.simd_gt(best_lda);
-        best_lda = mask.select(curr_lda, best_lda);
-        best_idx = mask.select(Simd::splat(j as i32), best_idx);
-
-
+        // Pick best result in SIMD lane
         let mut best_lane = 0;
         let mut best_lda_scalar = best_lda[0];
         for lane in 1..len {
@@ -82,8 +84,8 @@ fn insert_point(hull: &[shared::Point], inner_points: &[shared::Point]) -> Inser
         InsertPointResult {
             lda: best_lda_scalar,
             best_a: shared::Point {
-                x: hull_x[idx],
-                y: hull_y[idx],
+                x: a_x_cache[idx],
+                y: a_y_cache[idx],
             },
             best_c: shared::Point {
                 x: c_x[best_lane],
@@ -100,6 +102,7 @@ fn insert_point(hull: &[shared::Point], inner_points: &[shared::Point]) -> Inser
         |a, b| if a.lda > b.lda { a } else { b },
     )
 }
+
 
 fn update_hull(
     result: &InsertPointResult,
