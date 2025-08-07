@@ -20,7 +20,16 @@ pub fn parse_num(input: &String) -> f32 {
     // Rust handles scientific notation parsing directly, so:
     return input.parse::<f32>().unwrap();
 }
-
+pub fn should_log() ->bool {
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 3{
+        return true;
+    }
+    if args[2] == "--no-log"{
+        return false;
+    }
+    return true;
+}
 pub fn parse_file(file: &String) -> Vec<shared::Point> {
     let parts: Vec<&str> = file.split("NODE_COORD_SECTION").collect();
     if parts.len() < 2 {
