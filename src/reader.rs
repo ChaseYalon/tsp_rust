@@ -20,12 +20,34 @@ pub fn parse_num(input: &String) -> f32 {
     // Rust handles scientific notation parsing directly, so:
     return input.parse::<f32>().unwrap();
 }
-pub fn should_log() ->bool {
+pub fn should_log() -> bool {
     let args: Vec<String> = env::args().collect();
-    if args.len() < 3{
-        return true;
+    let sl = String::from("--no-log");
+    if args.contains(&sl){
+        return false;
     }
-    if args[2] == "--no-log"{
+    return true;
+}
+pub fn should_or_opt() -> bool{
+    let args: Vec<String> = env::args().collect();
+    let soo = String::from("--no-or-opt");
+    if args.contains(&soo){
+        return false;
+    }
+    return true;
+}
+pub fn should_edge_swap() -> bool{
+    let args: Vec<String> = env::args().collect();
+    let ses = String::from("--no-edge-switch");
+    if args.contains(&ses){
+        return false;
+    }
+    return true;
+}
+pub fn should_relp() -> bool{
+    let args: Vec<String> = env::args().collect();
+    let srelp = String::from("--no-relp");
+    if args.contains(&srelp){
         return false;
     }
     return true;

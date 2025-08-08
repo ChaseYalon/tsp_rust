@@ -1,4 +1,4 @@
-use crate::shared;
+use crate::shared::{self};
 use std::simd::{Simd, StdFloat};
 use std::simd::num::SimdFloat;
 use std::simd::cmp::SimdPartialOrd;
@@ -75,7 +75,7 @@ pub fn lda(
     let acos = fast_acos(cosine);
 
     let dist = point_line(a_x, a_y, b_x, b_y, c_x, c_y);
-    acos / dist
+    return acos / dist
 }
 
 pub fn path_dist(path: &[shared::Point]) -> f32 {
@@ -124,3 +124,4 @@ pub fn convex_hull(points: &[shared::Point]) -> Vec<shared::Point> {
     lower.extend(upper);
     lower
 }
+
