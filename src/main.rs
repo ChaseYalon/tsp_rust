@@ -6,7 +6,7 @@ use rayon::prelude::*;
 use std::simd::{Simd};
 use std::simd::prelude::SimdPartialOrd;
 
-use crate::reader::{should_edge_swap, should_log, should_or_opt, should_relp};
+use crate::reader::{no_post, should_edge_swap, should_log, should_or_opt, should_relp};
 use crate::relp::{remove_points_from_hull, find_lowest_lda_points};
 
 mod relp;
@@ -16,9 +16,6 @@ mod math;
 mod edges;
 mod or_opt;
 type SimdF32 = Simd<f32, 8>;
-
-
-
 
 fn insert_point(hull: &[shared::Point], inner_points: &[shared::Point]) -> relp::InsertPointResult {
     let hull_len = hull.len();
@@ -138,20 +135,20 @@ fn main() {
 
     let sl = should_log();
     let mut pb: ProgressBar = ProgressBar::new(1);
-    if !sl{
+    if sl{
         println!("Logging disabled");
     }
-    if sl {
+    if !sl {
         pb = ProgressBar::new(inner_hull.len().try_into().unwrap());
     }
     while !inner_hull.is_empty() {
         let result = insert_point(&hull, &inner_hull);
         update_hull(&result, &mut hull, &mut inner_hull, &mut insert_log);
-        if sl{
+        if !sl{
             pb.inc(1);
         }
     }
-    if sl{
+    if !sl{
         pb.finish();
 
     }
@@ -168,16 +165,19 @@ fn main() {
         Should add "global kill" for disabling all post processing
      */
     //0.03% ~2x execution time per 200 long edges tested
-    if should_edge_swap(){
+    if no_post(){
+        std::process::exit(0);
+    }
+    if !should_edge_swap(){
         edges::eliminate_all_crossings(&mut hull);
     }
     //0.01% ~0.02 secs
-    if should_or_opt(){
+    if !should_or_opt(){
         or_opt::multi_or_opt_optimization(&mut hull);
     }
     //0.025 ~5 secs
-    if should_relp(){
-        let mut new_inner_hull = find_lowest_lda_points(&insert_log, hull.len() / 4);
+    if !should_relp(){
+        let mut new_inner_hull = find_lowest_lda_points(&insert_log, hull.len() / 8);
         remove_points_from_hull(&mut hull, &new_inner_hull);
         while !new_inner_hull.is_empty() {
             let result = insert_point(&hull, &new_inner_hull);

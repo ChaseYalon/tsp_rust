@@ -24,33 +24,41 @@ pub fn should_log() -> bool {
     let args: Vec<String> = env::args().collect();
     let sl = String::from("--no-log");
     if args.contains(&sl){
-        return false;
+        return true;
     }
-    return true;
+    return false;
 }
 pub fn should_or_opt() -> bool{
     let args: Vec<String> = env::args().collect();
     let soo = String::from("--no-or-opt");
     if args.contains(&soo){
-        return false;
+        return true;
     }
-    return true;
+    return false;
 }
 pub fn should_edge_swap() -> bool{
     let args: Vec<String> = env::args().collect();
     let ses = String::from("--no-edge-switch");
     if args.contains(&ses){
-        return false;
+        return true;
     }
-    return true;
+    return false;
 }
 pub fn should_relp() -> bool{
     let args: Vec<String> = env::args().collect();
     let srelp = String::from("--no-relp");
     if args.contains(&srelp){
-        return false;
+        return true;
     }
-    return true;
+    return false;
+}
+pub fn no_post() -> bool {
+    let args: Vec<String> = env::args().collect();
+    let snp = String::from("--no-post");
+    if args.contains(&snp){
+        return true;
+    }
+    return false;
 }
 pub fn parse_file(file: &String) -> Vec<shared::Point> {
     let parts: Vec<&str> = file.split("NODE_COORD_SECTION").collect();
