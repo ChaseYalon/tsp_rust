@@ -1,0 +1,115 @@
+use std::env;
+use std::fs;
+use crate::shared;
+use std::fs::File;
+use std::io::Write;
+pub fn read_file() -> String {
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 2 {
+        eprintln!("Usage: {} <filename>", args[0]);
+        std::process::exit(1);
+    }
+    if &args[1] == "help" || &args[1] == "--help" || &args[1] == "-help"{
+        println!("To use run ./tsp.exe <PATH TO .tsp FILE>");
+        std::process::exit(1);
+    }
+    let filename = &args[1];
+    return fs::read_to_string(filename).unwrap();
+}
+
+pub fn parse_num(input: &String) -> f32 {
+    // Rust handles scientific notation parsing directly, so:
+    return input.parse::<f32>().unwrap();
+}
+pub fn should_log() -> bool {
+    let args: Vec<String> = env::args().collect();
+    let sl = String::from("--no-log");
+    if args.contains(&sl){
+        return true;
+    }
+    return false;
+}
+pub fn should_or_opt() -> bool{
+    let args: Vec<String> = env::args().collect();
+    let soo = String::from("--no-or-opt");
+    if args.contains(&soo){
+        return true;
+    }
+    return false;
+}
+pub fn should_edge_swap() -> bool{
+    let args: Vec<String> = env::args().collect();
+    let ses = String::from("--no-edge-switch");
+    if args.contains(&ses){
+        return true;
+    }
+    return false;
+}
+pub fn should_relp() -> bool{
+    let args: Vec<String> = env::args().collect();
+    let srelp = String::from("--no-relp");
+    if args.contains(&srelp){
+        return true;
+    }
+    return false;
+}
+pub fn no_post() -> bool {
+    let args: Vec<String> = env::args().collect();
+    let snp = String::from("--no-post");
+    if args.contains(&snp){
+        return true;
+    }
+    return false;
+}
+pub fn parse_file(file: &String) -> Vec<shared::Point> {
+    let parts: Vec<&str> = file.split("NODE_COORD_SECTION").collect();
+    if parts.len() < 2 {
+        return vec![];
+    }
+    let file_contents_2 = parts[1];
+    let file_contents_3 = file_contents_2.split("EOF").next().unwrap_or("");
+
+    let lines: Vec<&str> = file_contents_3.lines().collect();
+    let mut to_return = Vec::new();
+
+    for line in lines {
+        let split: Vec<&str> = line.split_whitespace().collect();
+        if split.len() >= 3 {
+            to_return.push(shared::Point {
+                x: parse_num(&split[1].to_string()),
+                y: parse_num(&split[2].to_string()),
+            });
+        }
+    }
+
+    return to_return;
+}
+
+pub fn vec_diff(a: &[shared::Point], b: &[shared::Point]) -> Vec<shared::Point> {
+    return a.iter()
+        .filter(|item| !b.contains(item))
+        .cloned()
+        .collect();
+}
+
+
+pub fn write_to_tsp_file(tour: &Vec<shared::Point>, path: &str) {
+    let mut to_write = format!(
+        "NAME : SOLVED
+COMMENT : Solved with tsp_solver (Copyright Chase Yalon)
+TYPE : TSP
+DIMENSION: {}
+EDGE_WEIGHT_TYPE : EUC_2D
+NODE_COORD_SECTION
+",
+        tour.len()
+    );
+
+    for (i, point) in tour.iter().enumerate() {
+        // TSP files are usually 1-based indexing for nodes
+        to_write += &format!("{}   {}   {}\n", i + 1, point.x, point.y);
+    }
+
+    let mut file = File::create(path).expect("Failed to create file");
+    file.write_all(to_write.as_bytes()).expect("Failed to write to file");
+}

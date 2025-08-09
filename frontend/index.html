@@ -1,0 +1,85 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <title>TSP SOLVER</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="./jsFiles/util.mjs" type="module" defer></script>
+    <!--<script src="https://cdn.plot.ly/plotly-3.0.0.min.js" charset="utf-8"></script>-->
+    <script src="./main.js" type="module" defer></script>
+    <script src="./jsFiles/brute.mjs" type="module" defer></script>
+    <script src="./jsFiles/canvasEffects.mjs" type="module" defer></script>
+    <script src="./jsFiles/christophides.mjs" type="module" defer></script>
+    <script src="./jsFiles/onPress.mjs" type="module" defer></script>
+    <script src="./jsFiles/tests.mjs" type="module" defer></script>
+    <link rel="icon" href="./imgs/globe.jpg">
+
+</head>
+
+<body>
+    <div class="center">
+        <div class="head">
+            <div class="parent">
+                <div class="child">
+                    <a href="/data">
+                        <p class="option">Data</p>
+                    </a>
+                </div>
+                <div class="child">
+                    <div class="center">
+                        <div class="centerHolder">
+                            <a href="/">
+                                <h2>Chase Yalon – Sci Fair 2025</h2>
+                            </a>
+                        </div>
+
+                    </div>
+                </div>
+                <div class="child">
+                    <div class="center">
+                        <a href="/about">
+                            <p class="option">About</p>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="center">
+        <div class="parent">
+            <div class="child">
+                <canvas id="canvas" height="500px" width="500px"></canvas>
+                <div class="center">
+                    <p id="path1" class="path"></p>
+                </div>
+            </div>
+            <div class="child">
+                <canvas id="canvas2" height="500px" width="500px"></canvas>
+                <div class="center">
+                    <p id="path2" class="path"></p>
+                </div>
+            </div>
+        </div>
+
+        <p id="status"></p>
+        <div class="center">
+            <button id="add">Add Point</button>
+            <button id="solveButton">Solve</button>
+            <button id="clear">Clear</button>
+            <button id="pointSet">Copy Points</button>
+            <button id="brute" class="isBrute">Brute Force Enabled</button>
+        </div>
+        <p id="toCopy"></p>
+        <div id="graph"></div>
+    </div>
+    <div class="center" id="tester"></div>
+    <div class="center">
+        <footer>
+            &copy Chase Yalon 2025, all rights reserved
+        </footer>
+    </div>
+
+
+</body>
+
+</html>

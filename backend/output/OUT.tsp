@@ -1,0 +1,16 @@
+NAME : SOLVED
+COMMENT : Solved with tsp_solver (Copyright Chase Yalon)
+TYPE : TSP
+DIMENSION: 10
+EDGE_WEIGHT_TYPE : EUC_2D
+NODE_COORD_SECTION
+1   32.59   73.46
+2   260.64   40.92
+3   300.14   24.05
+4   428.68   322.28
+5   481.18   472.39
+6   353.03   406.8
+7   348.98   426.7
+8   272.2   490.76
+9   253.13   337.03
+10   240.32   279.01
