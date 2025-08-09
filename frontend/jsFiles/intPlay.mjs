@@ -3,7 +3,6 @@ import util from "./util.mjs";
 import { christophides } from "./christophides.mjs";
 import { nearest } from "./nearesteNeighbor.mjs";
 
-
 //import { global } from "./globals.mjs";
 //import { canvasEffects } from "./canvasEffects.mjs";
 
@@ -59,15 +58,16 @@ async function createTable() {
         let chrisTA = performance.now()-start
         chrisTime += chrisTA; // Fixed typo from `chirsTime` to `chrisTime`
 
-        let toSend = `P1=${encodeURIComponent(JSON.stringify(localPoints))}`;
-        let response = await fetch(`/solve?${toSend}`);
-
+        let response = await fetch(`/solve`,{
+            method: "POST",
+            body: JSON.stringify({pts: localPoints})
+        })
         if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`);
         }
 
         let data = await response.json(); // Parse JSON response
-        let hull = data.hull; // Extract hull
+        let hull = data.pts; // Extract hull
         ittDistance += util.pathDist(hull);
 
         ittTime += data.time;

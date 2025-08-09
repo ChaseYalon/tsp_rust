@@ -37,7 +37,7 @@ app.post("/solve", async (c) => {
   const res = await Deno.readTextFile("output/OUT.tsp");
   const end = performance.now() - start;
   const response = { pts: parseFileToPoints(res), time: end };
-  console.log("Sending response to client ", response);
+  console.log("Sending response to client");
   return c.json(response);
 });
 async function sendHtml(c: any, filename: string) {
@@ -105,7 +105,7 @@ NODE_COORD_SECTION
 
   // Spawn the solver process, wait for it to finish if you want
   const command = new Deno.Command("../solver/target/release/tsp_rust.exe", {
-    args: ["input/IN.tsp", "--no-log", "--no-post"],
+    args: ["input/IN.tsp", "--no-log"],
   });
 
   const child = command.spawn();

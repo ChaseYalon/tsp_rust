@@ -195,6 +195,6 @@ fn main() {
         println!("Improved the tour to dist of {:.2?} with a {:.2?}% improvement using {:.2?} seconds", new_dist, (dist / new_dist) - 1.0, o_end / 1000.0);
     } else {
         println!("Operation completed, written to file");
-        write_to_tsp_file(&hull, "../../../backend/output/OUT.tsp");
+        write_to_tsp_file(&hull, "output/OUT.tsp");
     }
 }
