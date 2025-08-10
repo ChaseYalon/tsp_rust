@@ -37,6 +37,7 @@ app.post("/solve", async (c) => {
   const res = await Deno.readTextFile("output/OUT.tsp");
   const end = performance.now() - start;
   const response = { pts: parseFileToPoints(res), time: end };
+  Deno.writeTextFile('input/In.tsp', "");
   console.log("Sending response to client");
   return c.json(response);
 });
