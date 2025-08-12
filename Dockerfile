@@ -24,6 +24,8 @@ WORKDIR /app
 COPY ./backend ./backend
 COPY ./frontend ./frontend
 COPY ./certs ./certs
+COPY ./input ./input
+COPY ./output ./output
 
 # Copy the entire solver directory from the host (includes source)
 COPY ./solver ./solver

@@ -1,3 +1,4 @@
+import { BFManager, /*bruteForce*/ } from "./js/bruteforce.mjs";
 import { Custom_Canvas } from "./js/canvas.mjs";
 
 export class Point {
@@ -20,50 +21,14 @@ const brutebtn = document.getElementById('brute');
 const drawable = new Custom_Canvas(canvas);
 
 // Better state management
-class BruteForceState {
-    constructor(button) {
-        this.button = button;
-        this.enabled = true;
-    }
-    
-    get isEnabled() {
-        return this.enabled;
-    }
-    
-    enable() {
-        this.enabled = true;
-        this.button.classList.remove('bf-off');
-        this.button.classList.add('bf-but');
-    }
-    
-    disable() {
-        this.enabled = false;
-        this.button.classList.remove('bf-but');
-        this.button.classList.add('bf-off');
-    }
-    
-    toggle() {
-        if (this.enabled) {
-            this.disable();
-        } else {
-            this.enable();
-        }
-    }
-    
-    // Disable if too many points (>15)
-    checkPointLimit(pointCount) {
-        if (pointCount > 15 && this.enabled) {
-            this.disable();
-        }
-    }
-}
 
-const bruteForceState = new BruteForceState(brutebtn);
+
+const bruteForce = new BFManager(brutebtn);
 
 drawable.onClick(() => {
     drawable.drawCircle(drawable.getMouseX(), drawable.getMouseY());
     points.push(new Point(drawable.getMouseX(), drawable.getMouseY()));
-    bruteForceState.checkPointLimit(points.length);
+    bruteForce.checkPointLimit(points.length);
 });
 
 /**
@@ -102,13 +67,13 @@ addbtn.addEventListener('click', () => {
     let pt = new Point(rand(0, 800), rand(0, 600));
     points.push(pt);
     drawable.drawCircle(pt.x, pt.y);
-    bruteForceState.checkPointLimit(points.length);
+    bruteForce.checkPointLimit(points.length);
 });
 
 brutebtn.addEventListener('click', () => {
-    console.log("Brute force enabled:", bruteForceState.isEnabled);
+    console.log("Brute force enabled:", bruteForce.isEnabled);
     if (points.length <= 15) {
-        bruteForceState.toggle();
+        bruteForce.toggle();
     }
     // If > 15 points, button stays disabled (no action)
 });

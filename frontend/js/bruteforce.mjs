@@ -27,9 +27,7 @@ class Node{
  * @returns {Point[]} solved array of points
  * @description branch and bound TSP solver
  */
-
-
-function tspBranchAndBound(points) {
+export function bruteForce(points) {
     const n = points.length;
 
     // Precompute distance matrix
@@ -94,4 +92,44 @@ function tspBranchAndBound(points) {
     dfs([0], 0); // start at first point
 
     return bestPath.map(i => points[i]);
+}
+export class BFManager {
+    constructor(button) {
+        this.button = button;
+        this.enabled = true;
+    }
+    
+    get isEnabled() {
+        return this.enabled;
+    }
+    
+    enable() {
+        this.enabled = true;
+        this.button.classList.remove('bf-off');
+        this.button.classList.add('bf-but');
+        this.button.innerHTML = "Brute Force Enabled";
+        this.checkPointLimit()
+    }
+    
+    disable() {
+        this.enabled = false;
+        this.button.classList.remove('bf-but');
+        this.button.classList.add('bf-off');
+        this.button.innerHTML = "Brute Force Disabled";
+    }
+    
+    toggle() {
+        if (this.enabled) {
+            this.disable();
+        } else {
+            this.enable();
+        }
+    }
+    
+    // Disable if too many points (>15)
+    checkPointLimit(pointCount) {
+        if (pointCount > 15 && this.enabled) {
+            this.disable();
+        }
+    }
 }

@@ -48,7 +48,6 @@ app.post("/solve", async (c) => {
 app.get("/", (c) => sendHtml(c, "index.html"));
 app.get("/about", (c) => sendHtml(c, "about.html"));
 app.get("/data", (c) => sendHtml(c, "data.html"));
-
 // Serve static files (put this after explicit routes to avoid conflicts)
 app.use("/static/*", serveStatic({ 
   root: "./" 
@@ -59,6 +58,7 @@ app.use("*", serveStatic({
   root: "./",
   rewriteRequestPath: (path) => path.replace(/^\//, "/frontend/")
 }));
+app.get("*", (c) => sendHtml(c, "errs/404.html"));
 
 function parseFileToPoints(input: string): Point[] {
   const section = input.split("NODE_COORD_SECTION")[1];
@@ -149,7 +149,7 @@ NODE_COORD_SECTION
   console.log(`Using executable path: ${executablePath}`);
 
   const command = new Deno.Command(executablePath, {
-    args: ["input/IN.tsp", "--no-log"],
+    args: ["input/IN.tsp"],
   });
 
   const child = command.spawn();

@@ -17,12 +17,19 @@
     background-color: var(--accent-color);
     font-size: 2rem;
     color: var(--text-color);
-    margin: 0.3rem;
     padding: 0.3rem;
     border-radius: 3rem;
 }
+body{
+    padding:0.3rem;
+}
+a{
+    color: var(--text-color);
+    text-decoration: none;
+}
 .flex-container{
     display: flex;
+    gap: 10vw;
 }
 .flex-item {
     flex: 1; /* each takes equal space */
