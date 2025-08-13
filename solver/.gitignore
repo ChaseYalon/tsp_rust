@@ -2,5 +2,3 @@ target
 tsp_rust
 tsp_rust.exe
 tspRust
-backend/output.OUT.tsp
-backend/input/IN.tsp
