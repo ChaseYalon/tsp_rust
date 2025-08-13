@@ -7,12 +7,6 @@ class Point{
     }
 }
 export class Custom_Canvas {
-    canvas;
-    height;
-    width;
-    ctx;
-    mouse_x;
-    mouse_y;
     callback = () => {};
     /** 
     * @param {HTMLCanvasElement} canvas -  is the canvas that you want to use

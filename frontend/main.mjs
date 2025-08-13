@@ -35,7 +35,7 @@ drawable.onClick(() => {
  * @param {Point[]} points - set of points to solve, requires HTTP
  * @returns {Point[]} - Solved point set
  */
-async function solve(points) {
+ async function solve(points) {
     let to_send = JSON.stringify({pts: points});
     const response = await fetch("/solve", {
         method: "POST",
