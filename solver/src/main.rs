@@ -5,7 +5,8 @@ use indicatif::ProgressBar;
 use rayon::prelude::*;
 use std::simd::{Simd};
 use std::simd::prelude::SimdPartialOrd;
-
+use std::env;
+use std::fs;
 use crate::reader::{no_post, should_edge_swap, should_log, should_or_opt, should_relp, write_to_tsp_file};
 use crate::relp::{remove_points_from_hull, find_lowest_lda_points};
 
@@ -151,6 +152,16 @@ fn main() {
     let mut hull = math::convex_hull(&points);
     let mut inner_hull = reader::vec_diff(&points, &hull);
     let mut insert_log: Vec<relp::InsertPointResult> = Vec::with_capacity(inner_hull.len());
+
+    if hull.len() == 0{
+        eprintln!("Hull length is zero, input was not read properly, args are {:#?}",     env::args().collect::<Vec<_>>());
+    if let Some(arg) = env::args().nth(1) {
+        eprintln!("File is {:?}", fs::read_to_string(arg));
+    } else {
+        eprintln!("No argument provided");
+    }
+        std::process::exit(1);
+    }
 
     let sl = should_log();
     let mut pb: ProgressBar = ProgressBar::new(1);

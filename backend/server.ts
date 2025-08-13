@@ -11,11 +11,21 @@ const BACKEND_DIR = join(APP_ROOT, "backend");
 const INPUT_DIR = join(BACKEND_DIR, "input");
 const OUTPUT_DIR = join(BACKEND_DIR, "output");
 
+function ensureFile(path: string) {
+  try {
+    const stat = Deno.statSync(path);
+    if (!stat.isFile) throw new Error();
+  } catch {
+    Deno.mkdirSync(join(path, ".."), { recursive: true });
+    Deno.writeTextFileSync(path, "");
+  }
+}
+
 function init() {
   Deno.mkdirSync(INPUT_DIR, { recursive: true });
   Deno.mkdirSync(OUTPUT_DIR, { recursive: true });
-  Deno.writeTextFileSync(join(INPUT_DIR, "IN.tsp"), "");
-  Deno.writeTextFileSync(join(OUTPUT_DIR, "OUT.tsp"), "");
+  ensureFile(join(INPUT_DIR, "IN.tsp"));
+  ensureFile(join(OUTPUT_DIR, "OUT.tsp"));
 }
 
 init();
@@ -44,7 +54,6 @@ app.post("/solve", async (c) => {
   const body = (await c.req.json()) as { pts: { x: number; y: number }[] };
   const points = parseToPoints(body);
 
-
   await writeFileAndRunSolver(points);
 
   // Read solver output
@@ -54,13 +63,10 @@ app.post("/solve", async (c) => {
   const end = performance.now() - start;
   const response = { pts: parseFileToPoints(res), time: end };
 
-  // Now it's safe to clean up
-  await Deno.writeTextFile(join(INPUT_DIR, "IN.tsp"), "");
-
   return c.json(response);
 });
 
-// Explicit HTML routes first
+// Explicit HTML routes
 app.get("/", (c) => sendHtml(c, "index.html"));
 app.get("/about", (c) => sendHtml(c, "about.html"));
 app.get("/data", (c) => sendHtml(c, "data.html"));
@@ -68,7 +74,7 @@ app.get("/data", (c) => sendHtml(c, "data.html"));
 // Serve static files
 app.use("/static/*", serveStatic({ root: "./" }));
 
-// Catch-all for other static files
+// Catch-all for other static files (rewrite to frontend)
 app.use("*", serveStatic({
   root: "./",
   rewriteRequestPath: (path) => path.replace(/^\//, "/frontend/")
@@ -138,20 +144,17 @@ ${input.map((p, i) => `${i + 1}    ${p.x}    ${p.y}`).join("\n")}
     } catch {}
   }
 
-
   const command = new Deno.Command(executablePath, {
-    args: [inPath, "--no-log"],
-    cwd: APP_ROOT, // force consistent working directory
+    args: ["backend/input/IN.tsp"],
+    cwd: APP_ROOT,
   });
 
-  const child = command.spawn();
-  const status = await child.status;
-
-  // Debug: list any OUT.tsp found
-  const findCmd = new Deno.Command("find", {
-    args: [APP_ROOT, "-name", "OUT.tsp"]
-  });
-  const findOut = await findCmd.output();
+  // Wait for solver to finish
+  const { code, stderr } = await command.output();
+  if (code !== 0) {
+    console.error("Solver error:", new TextDecoder().decode(stderr));
+    throw new Error("Solver failed");
+  }
 }
 
 const options = {
