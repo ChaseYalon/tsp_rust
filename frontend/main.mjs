@@ -54,7 +54,9 @@ function rand(min, max) {
 }
 
 solvebtn.addEventListener('click', async () => {
-    drawable.drawPath(await solve(points));
+    const path = await solve(points);
+    console.log(path);
+    drawable.drawPath(path);
 });
 
 clearbtn.addEventListener('click', () => {
