@@ -38,6 +38,12 @@ a{
     justify-content: center; /* centers text inside each flex item */
     padding: 0.7rem;
 }
+h2{
+    font-size:2.1rem;
+}
+html{
+    font-family: Georgia;
+}
 /*Option button*/
 .opt-but{
     background-color: var(--accent-color);

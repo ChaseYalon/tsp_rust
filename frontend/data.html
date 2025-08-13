@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<!-- Improve visuals -->
+<html>
+    <head>
+        <link rel="stylesheet" href="stylesheet.css">
+        <script src="js/canvas.mjs" type="module"></script>
+        <script src="data.mjs" type="module"></script>
+        <title>MECUM</title>
+        <link rel="icon" href="imgs/globe.ico">
+        <style>
+            .grid-container{
+                display: grid;
+                grid-template-columns: 3fr 7fr 2fr;
+                height: 70vh;
+            }
+            .config-options-container{
+                display: grid;
+                grid-template-columns:6fr 2fr;
+                /*All of the config options should take up 70%, there are 4 If I add more must change do 70/n*/
+                height: 17.5%
+            }
+            .option-enable-specifier{
+                font-size: 2rem;
+            }
+            .generate-button{
+                display: block;
+                background-color: #0b540b;
+                color: #a3ffa3;
+                border-radius: 2rem;
+                border: 4px solid black;
+                transition: 0.5s;
+                height: 5rem;
+                font-size:3rem;
+            }
+            .generate-button:hover{
+                background-color: #a3ffa3;
+                color: #0b540b;
+                transition: 0.5s;
+            }
+            input[type="checkbox"] {
+                accent-color: #000000; /* changes checked color */
+                transition: accent-color 0.5s, transform 0.5s;
+                width: 60%;
+                height: 60%
+            }
+
+            input[type="checkbox"]:checked {
+                transform: scale(1.2); /* optional: add a little animation */
+            }
+            .num-config{
+                height: 100%;
+                width: 100%;
+                font-size: 1.5rem;
+            }
+            .report-container{
+                margin: 1rem;
+                padding: 1rem;
+            }
+            td{
+                border: 2px solid black;
+                font-size: 1.3rem;
+                margin: 0rem;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="center">
+            <div class="header-container flex-container">
+                <a class="flex-item" style="justify-content: flex-start;" href="/about">ABOUT</a>
+                <a class="flex-item" href="/">MECUM</a>
+                <a class="flex-item" style="justify-content: flex-end" href="/data">DATA</a>
+            </div>
+        </div>
+        <div class="center">
+            <h2 >Welcome to the data page where you can generate data about the accuracy of MECUM</h2>
+        </div>
+        <div class="grid-container">
+            <!-- Represents sidebar with Generation options -->
+            <div class="config-options-container">
+                <p class="option-enable-specifier">MECUM (LDA)</p>
+                <input id="lda-check" type="checkbox">
+
+                <p class="option-enable-specifier">Brute force</p>
+                <input id="bf-check" type="checkbox">
+
+                <p class="option-enable-specifier">Nearest Neighbor</p>
+                <input id="nn-check" type="checkbox">
+
+                <p class="option-enable-specifier">Christophe's Algorithm</p>
+                <input id="chris-check" type="checkbox">
+                <!-- Should add LKH or Concorde but getting concorde running is annoying and LKH is confusing, also get license-->
+
+                <div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 1rem;">
+                        <input id="pt-count" class="num-config" type="text" value="point count">
+                        <input id="test-count" class="num-config" type="text" value="test count">
+                    </div>
+                    <button id="generate" class="generate-button">GENERATE</button>
+                </div>
+            </div>
+            <!-- Represents main Report -->
+            <div class="center" id="report-container">
+
+            </div>
+            <!-- Represents sidebar with export options-->
+            <div>
+
+            </div>
+        </div>
+
+    </body>
+</html>

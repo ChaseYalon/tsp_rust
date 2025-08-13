@@ -1,10 +1,19 @@
 <!DOCTYPE html>
-
 <html>
     <head>
         <link rel="stylesheet" href="stylesheet.css">
         <title>MECUM</title>
         <link rel="icon" href="imgs/globe.ico">
+        <style>
+            .centered-section {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                margin-top: 3rem;
+            }
+        </style>
     </head>
     <body>
         <!-- <HEADER> -->
@@ -12,14 +21,14 @@
             <div class="header-container flex-container">
                 <a href="/about" class="flex-item" style="justify-content: flex-start;">ABOUT</a>
                 <a href="/" class="flex-item">MECUM</a>
-                <div class="flex-item" style="justify-content: flex-end">DATA</div>
+                <a href="/data"class="flex-item" style="justify-content: flex-end">DATA</a>
             </div>
         </div>
         <div class="center" style="margin-bottom: 1rem;">
             <div style="display: inline-block;">
-                <h1 style="font-size:2.5rem;"class="center"> Hi!</h1>
-                <h2 style="font-size:2.2rem;"class="center">Welcome to Mecum</h2>
-                <h3 style="font-size:1.9rem;"class="center">The TSP solver by Chase Yalon</h3>
+                <h1 style="font-size:2.5rem;" class="center">Hi!</h1>
+                <h2 style="font-size:2.2rem;" class="center">Welcome to Mecum</h2>
+                <h3 style="font-size:1.9rem;" class="center">The TSP solver by Chase Yalon</h3>
             </div>
         </div>
         <!-- </HEADER> -->
@@ -32,7 +41,7 @@
                 </div>
                 <div class="flex-item" style="padding-top:0rem;">
                     <div style="display:inline-block; font-size:1.9rem;">
-                        <h2 style="font-size:2.2rem;">Some fast facts about me</h2>
+                        <h2>Some fast facts about me</h2>
                         <ul>
                             <li>I am 15 years old</li>
                             <li>I (perhaps obviously) like to program in my spare time</li>
@@ -46,10 +55,17 @@
             </div>
         </div>
         <!-- </ABOUT_ME> -->
-        <div class="flex-container">
-            <div style="justify-content: right;">
-                
-            </div>
+
+        <!-- <NAME_EXPLANATION> -->
+        <div class="centered-section">
+            <h2 style="margin-bottom: 1rem;">
+                So what is the deal with the name MECUM?
+            </h2>
+            <p style="font-size:1.9rem; max-width: 600px;">
+                It means "with me" in Latin, and I named this while I was supposed to be studying for a Latin test.
+            </p>
         </div>
+        <!-- </NAME_EXPLANATION> -->
+        <!-- I feel like I should add more here, maybe FAQ?-->
     </body>
 </html>
