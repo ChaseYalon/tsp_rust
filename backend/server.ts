@@ -1,24 +1,45 @@
-//This code is ugly and inefficient and I hate it
-
 import { Hono } from "hono";
-import { serveStatic } from 'hono/serve-static'
-import { join } from 'https://deno.land/std@0.224.0/path/mod.ts'
+import { serveStatic } from "hono/deno";
+import { join } from "https://deno.land/std@0.224.0/path/mod.ts";
 
 const app = new Hono();
-app.use(
-  '/*',
-  serveStatic({
-    root: '../frontend', // relative to cwd
-    getContent: async (path) => {
-      const filePath = join('../frontend', path)
-      try {
-        return await Deno.readFile(filePath)
-      } catch {
-        return null // File not found
-      }
-    },
-  })
-)
+
+// Absolute base directories
+const APP_ROOT = Deno.cwd();
+const FRONTEND_DIR = join(APP_ROOT, "frontend");
+const BACKEND_DIR = join(APP_ROOT, "backend");
+const INPUT_DIR = join(BACKEND_DIR, "input");
+const OUTPUT_DIR = join(BACKEND_DIR, "output");
+
+function ensureFile(path: string) {
+  try {
+    const stat = Deno.statSync(path);
+    if (!stat.isFile) throw new Error();
+  } catch {
+    Deno.mkdirSync(join(path, ".."), { recursive: true });
+    Deno.writeTextFileSync(path, "");
+  }
+}
+
+function init() {
+  Deno.mkdirSync(INPUT_DIR, { recursive: true });
+  Deno.mkdirSync(OUTPUT_DIR, { recursive: true });
+  ensureFile(join(INPUT_DIR, "IN.tsp"));
+  ensureFile(join(OUTPUT_DIR, "OUT.tsp"));
+}
+
+init();
+
+async function sendHtml(c: any, filename: string) {
+  const filePath = join(FRONTEND_DIR, filename);
+  try {
+    const html = await Deno.readTextFile(filePath);
+    return c.html(html);
+  } catch {
+    return c.text("404 Not Found", 404);
+  }
+}
+
 class Point {
   x: number;
   y: number;
@@ -29,42 +50,48 @@ class Point {
 }
 
 app.post("/solve", async (c) => {
-  // Directly parse JSON body as an object
   const start = performance.now();
-  const body = await c.req.json() as { pts: { x: number; y: number }[] };
+  const body = (await c.req.json()) as { pts: { x: number; y: number }[] };
   const points = parseToPoints(body);
-  await writeFile(points);
-  const res = await Deno.readTextFile("output/OUT.tsp");
+
+  await writeFileAndRunSolver(points);
+
+  // Read solver output
+  const outPath = join(OUTPUT_DIR, "OUT.tsp");
+  const res = await Deno.readTextFile(outPath);
+
   const end = performance.now() - start;
   const response = { pts: parseFileToPoints(res), time: end };
-  console.log("Sending response to client");
+
   return c.json(response);
 });
-async function sendHtml(c: any, filename: string) {
-  const filePath = join('../frontend', filename)
-  try {
-    const html = await Deno.readTextFile(filePath)
-    return c.html(html)
-  } catch {
-    return c.text('404 Not Found', 404)
-  }
-}
 
-// Routes
-app.get('/', (c) => sendHtml(c, 'index.html'))
-app.get('/about', (c) => sendHtml(c, 'about.html'))
-app.get('/data', (c) => sendHtml(c, 'data.html'))
+// Explicit HTML routes
+app.get("/", (c) => sendHtml(c, "index.html"));
+app.get("/about", (c) => sendHtml(c, "about.html"));
+app.get("/data", (c) => sendHtml(c, "data.html"));
+
+// Serve static files
+app.use("/static/*", serveStatic({ root: "./" }));
+
+// Catch-all for other static files (rewrite to frontend)
+app.use("*", serveStatic({
+  root: "./",
+  rewriteRequestPath: (path) => path.replace(/^\//, "/frontend/")
+}));
+
+app.get("*", (c) => sendHtml(c, "errs/404.html"));
+
 function parseFileToPoints(input: string): Point[] {
   const section = input.split("NODE_COORD_SECTION")[1];
   if (!section) return [];
 
-  const lines = section.trim().split("\n").filter(line => line.trim().length > 0);
-
+  const lines = section.trim().split("\n").filter((line) => line.trim().length > 0);
   const points: Point[] = [];
 
   for (const line of lines) {
     const parts = line.trim().split(/\s+/);
-    if (parts.length < 3) continue;  // skip malformed line
+    if (parts.length < 3) continue;
 
     const x = parseFloat(parts[1]);
     const y = parseFloat(parts[2]);
@@ -73,43 +100,67 @@ function parseFileToPoints(input: string): Point[] {
       points.push(new Point(x, y));
     }
   }
-
   return points;
 }
 
 function parseToPoints(input: { pts: { x: number; y: number }[] }): Point[] {
-  const toRet: Point[] = [];
-  for (let i = 0; i < input.pts.length; i++) {
-    toRet.push(new Point(input.pts[i].x, input.pts[i].y));
-  }
-  
-  return toRet;
+  return input.pts.map(p => new Point(p.x, p.y));
 }
 
-async function writeFile(input: Point[]): Promise<void> {
-  let str = `NAME : to_solve
-COMMENT : to be solved with tsp_solver (Copyright Chase Yalon)
+async function writeFileAndRunSolver(input: Point[]): Promise<void> {
+  const str =
+`NAME : to_solve
+COMMENT : to be solved with tsp_solver
 TYPE : TSP
 DIMENSION: ${input.length}
 EDGE_WEIGHT_TYPE : EUC_2D
 NODE_COORD_SECTION
+${input.map((p, i) => `${i + 1}    ${p.x}    ${p.y}`).join("\n")}
 `;
 
-  for (let i = 0; i < input.length; i++) {
-    // Typically TSP node indices start at 1
-    str += `${i + 1}    ${input[i].x}    ${input[i].y}\n`;
+  const inPath = join(INPUT_DIR, "IN.tsp");
+  await Deno.mkdir(INPUT_DIR, { recursive: true });
+  await Deno.mkdir(OUTPUT_DIR, { recursive: true });
+
+  await Deno.writeTextFile(inPath, str);
+
+  const isWindows = Deno.build.os === "windows";
+  const executableName = isWindows ? "tsp_rust.exe" : "tsp_rust";
+
+  const possiblePaths = [
+    join(APP_ROOT, "solver", "target", "release", executableName),
+    join(APP_ROOT, "..", "solver", "target", "release", executableName),
+    join("solver", "target", "release", executableName)
+  ];
+
+  let executablePath = possiblePaths[0];
+  for (const path of possiblePaths) {
+    try {
+      const stat = await Deno.stat(path);
+      if (stat.isFile) {
+        executablePath = path;
+        break;
+      }
+    } catch {}
   }
 
-  // Await writing file as it returns a Promise
-  await Deno.writeTextFile("input/IN.tsp", str);
-
-  // Spawn the solver process, wait for it to finish if you want
-  const command = new Deno.Command("../solver/target/release/tsp_rust.exe", {
-    args: ["input/IN.tsp", "--no-log"],
+  const command = new Deno.Command(executablePath, {
+    args: ["backend/input/IN.tsp"],
+    cwd: APP_ROOT,
   });
 
-  const child = command.spawn();
-  await child.status; // wait for the process to finish if needed
+  // Wait for solver to finish
+  const { code, stderr } = await command.output();
+  if (code !== 0) {
+    console.error("Solver error:", new TextDecoder().decode(stderr));
+    throw new Error("Solver failed");
+  }
 }
 
-Deno.serve(app.fetch);
+const options = {
+  port: 443,
+  cert: await Deno.readTextFile(join(APP_ROOT, "certs", "fullchain.pem")),
+  key: await Deno.readTextFile(join(APP_ROOT, "certs", "privkey.pem")),
+};
+
+Deno.serve(options, app.fetch);

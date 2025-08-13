@@ -5,7 +5,8 @@ use indicatif::ProgressBar;
 use rayon::prelude::*;
 use std::simd::{Simd};
 use std::simd::prelude::SimdPartialOrd;
-
+use std::env;
+use std::fs;
 use crate::reader::{no_post, should_edge_swap, should_log, should_or_opt, should_relp, write_to_tsp_file};
 use crate::relp::{remove_points_from_hull, find_lowest_lda_points};
 
@@ -122,6 +123,25 @@ fn update_hull(
 }
 
 
+fn get_output_path() -> String {
+    // Try to determine the correct output path
+    if std::path::Path::new("backend/output").exists() {
+        "backend/output/OUT.tsp".to_string()
+    } else if std::path::Path::new("output").exists() {
+        "output/OUT.tsp".to_string()
+    } else {
+        // Create the directory if it doesn't exist
+        std::fs::create_dir_all("backend/output").unwrap_or_else(|_| {
+            std::fs::create_dir_all("output").unwrap();
+        });
+        if std::path::Path::new("backend/output").exists() {
+            "backend/output/OUT.tsp".to_string()
+        } else {
+            "output/OUT.tsp".to_string()
+        }
+    }
+}
+
 fn main() {
     rayon::ThreadPoolBuilder::new().build_global().unwrap();
 
@@ -132,6 +152,16 @@ fn main() {
     let mut hull = math::convex_hull(&points);
     let mut inner_hull = reader::vec_diff(&points, &hull);
     let mut insert_log: Vec<relp::InsertPointResult> = Vec::with_capacity(inner_hull.len());
+
+    if hull.len() == 0{
+        eprintln!("Hull length is zero, input was not read properly, args are {:#?}",     env::args().collect::<Vec<_>>());
+    if let Some(arg) = env::args().nth(1) {
+        eprintln!("File is {:?}", fs::read_to_string(arg));
+    } else {
+        eprintln!("No argument provided");
+    }
+        std::process::exit(1);
+    }
 
     let sl = should_log();
     let mut pb: ProgressBar = ProgressBar::new(1);
@@ -150,8 +180,8 @@ fn main() {
     }
     if !sl{
         pb.finish();
-
     }
+    
     let dist = math::path_dist(&hull);
     let elapsed = start.elapsed();
     if !sl{
@@ -160,26 +190,22 @@ fn main() {
     }
 
     let o_start = Instant::now();
-    /*
-        This is the post processing section
-        The idea is to take quick easy fixes to "smooth out" some of the rough spots
-        The user can disable each section with a terminal command
-        Should add "global kill" for disabling all post processing
-     */
-    //0.03% ~2x execution time per 200 long edges tested
+    
+    // Get consistent output path
+    let output_path = get_output_path();
+    
     if no_post(){
         println!("Operation completed, written to file");
-        write_to_tsp_file(&hull, "output/OUT.tsp");
+        write_to_tsp_file(&hull, &output_path);
         std::process::exit(0);
     }
+    
     if !should_edge_swap(){
         edges::eliminate_all_crossings(&mut hull);
     }
-    //0.01% ~0.02 secs
     if !should_or_opt(){
         or_opt::multi_or_opt_optimization(&mut hull);
     }
-    //0.025 ~5 secs
     if !should_relp(){
         let mut new_inner_hull = find_lowest_lda_points(&insert_log, hull.len() / 8);
         remove_points_from_hull(&mut hull, &new_inner_hull);
@@ -195,6 +221,8 @@ fn main() {
         println!("Improved the tour to dist of {:.2?} with a {:.2?}% improvement using {:.2?} seconds", new_dist, (dist / new_dist) - 1.0, o_end / 1000.0);
     } else {
         println!("Operation completed, written to file");
-        write_to_tsp_file(&hull, "output/OUT.tsp");
     }
+    
+    // Always write to the consistent output path
+    write_to_tsp_file(&hull, &output_path);
 }

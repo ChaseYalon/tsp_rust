@@ -1,0 +1,93 @@
+:root {
+    --bg-color: #d1e399;
+    --accent-color: #89ad8f;
+    --text-color: #1e868e;
+}
+
+/* Util classes */
+.center {
+    display: flex;
+    justify-content: center; /* Centers horizontally */
+    padding: 0px;
+    margin: 0px;
+}
+.header-container{
+    width: 85%;
+    height: 15%;
+    background-color: var(--accent-color);
+    font-size: 2rem;
+    color: var(--text-color);
+    padding: 0.3rem;
+    border-radius: 3rem;
+}
+body{
+    padding:0.3rem;
+}
+a{
+    color: var(--text-color);
+    text-decoration: none;
+}
+.flex-container{
+    display: flex;
+    gap: 10vw;
+}
+.flex-item {
+    flex: 1; /* each takes equal space */
+    display: flex;
+    align-items: center;
+    justify-content: center; /* centers text inside each flex item */
+    padding: 0.7rem;
+}
+/*Option button*/
+.opt-but{
+    background-color: var(--accent-color);
+    color: var(--text-color);
+    font-size: 1.7rem;
+    border-radius: 1rem;
+    padding: 1rem;
+    margin: 0.4rem;
+    transition: all 0.25s;
+
+}
+.opt-but:hover{
+    background-color: #628267;
+    color: #0a595f;
+    transition: all 0.25s;
+}
+.bf-but{
+    background-color: #24671f;
+    color: #94e194;
+    font-size: 1.7rem;
+    border-radius: 1rem;
+    padding: 1rem;
+    margin: 0.4rem;
+    transition: all 0.25s;
+
+}
+.bf-but:hover{
+    background-color: #94e194;
+    color: #24671f;
+    transition: all 0.25s;
+}
+.bf-off{
+    background-color: #722d2d;
+    color: #e19494;
+    font-size: 1.7rem;
+    border-radius: 1rem;
+    padding: 1rem;
+    margin: 0.4rem;
+    transition: all 0.25s;
+
+}
+.bf-off:hover{
+    background-color: #e19494;
+    color: #722d2d;
+    transition: all 0.25s;
+}
+canvas {
+    cursor: crosshair;
+}
+body{
+    background-color: var(--bg-color);
+}
+
