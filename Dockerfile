@@ -1,5 +1,10 @@
 # Multi-stage build: First stage for Rust compilation
-FROM rust:latest as rust-builder
+FROM debian:bookworm as builder
+
+RUN apt update
+RUN apt update && apt install -y curl build-essential wget git
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Set working directory for Rust build
 WORKDIR /rust-build
@@ -14,7 +19,15 @@ COPY ./solver ./solver
 WORKDIR /rust-build/solver
 RUN cargo build --release
 
-# Second stage: Deno runtime with compiled Rust binary
+# Clone concorde
+
+WORKDIR /app/concorde
+#Get concorde executable
+RUN wget -O concorde.gz https://www.math.uwaterloo.ca/tsp/concorde/downloads/codes/linux24/concorde.gz \
+    && gunzip -f concorde.gz \
+    && chmod +x concorde
+
+
 FROM denoland/deno:2.4.3
 
 # Set working directory inside container
@@ -26,12 +39,11 @@ COPY ./frontend ./frontend
 COPY ./certs ./certs
 COPY ./backend/input ./backend/input
 COPY ./backend/output ./backend/output
-
-# Copy the entire solver directory from the host (includes source)
+COPY  --from=builder ./app/concorde ./concorde
 COPY ./solver ./solver
 
 # Copy the compiled Rust binary from the builder stage to replace the one in solver
-COPY --from=rust-builder /rust-build/solver/target ./solver/target
+COPY --from=builder /rust-build/solver/target ./solver/target
 
 # Expose HTTPS port
 EXPOSE 443
