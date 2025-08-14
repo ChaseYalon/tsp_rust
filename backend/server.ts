@@ -65,6 +65,28 @@ app.post("/solve", async (c) => {
   return c.json(response);
 });
 
+app.post("/brute", async (c) => {
+  const points =(await c.req.json()) as Point[];
+  if (!points || !Array.isArray(points) || points.length === 0) {
+    return c.json({ error: "No points provided" }, 400);
+  }
+
+  await writeFile(points, join(INPUT_DIR, "BIN.tsp"));
+  const command = new Deno.Command("/app/concorde/concorde", {
+    args: ["backend/input/BIN.tsp"],
+    cwd: APP_ROOT,
+    stdout: "piped",
+    stderr: "piped"
+  });
+
+  const output = await command.output();
+  const stdoutText = new TextDecoder().decode(output.stdout);
+
+  const solution = parseFloat(stdoutText.split("Optimal Solution: ")[1].split("\n")[0]);
+  const runTime =  parseFloat(stdoutText.split("Total Running Time: ")[1].split(" ")[0]);
+  return c.json({time: runTime, dist: solution});
+});
+
 // Explicit HTML routes
 app.get("/", (c) => sendHtml(c, "index.html"));
 app.get("/about", (c) => sendHtml(c, "about.html"));
@@ -105,9 +127,8 @@ function parseFileToPoints(input: string): Point[] {
 function parseToPoints(input: { pts: { x: number; y: number }[] }): Point[] {
   return input.pts.map(p => new Point(p.x, p.y));
 }
-
-async function writeFileAndRunSolver(input: Point[]): Promise<void> {
-  const str =
+async function writeFile(input:Point[], path: string){
+    const str =
 `NAME : to_solve
 COMMENT : to be solved with tsp_solver
 TYPE : TSP
@@ -117,12 +138,16 @@ NODE_COORD_SECTION
 ${input.map((p, i) => `${i + 1}    ${p.x}    ${p.y}`).join("\n")}
 `;
 
+
+  await Deno.writeTextFile(path, str);
+
+}
+async function writeFileAndRunSolver(input: Point[]): Promise<void> {
   const inPath = join(INPUT_DIR, "IN.tsp");
   await Deno.mkdir(INPUT_DIR, { recursive: true });
   await Deno.mkdir(OUTPUT_DIR, { recursive: true });
 
-  await Deno.writeTextFile(inPath, str);
-
+  writeFile(input, inPath)
   const isWindows = Deno.build.os === "windows";
   const executableName = isWindows ? "tsp_rust.exe" : "tsp_rust";
 
