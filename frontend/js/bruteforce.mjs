@@ -8,18 +8,18 @@
  * @param {Point[]} points - Array of points with x, y properties
  * @returns {{from: Point, to: Point}[]} - Optimal tour as array of edges
  */
+/**
+ * Branch and bound TSP solver
+ * @param {Point[]} points - Array of points with x, y properties
+ * @returns {Point[]} - Optimal tour as array of points (including return to start at the end)
+ */
 export function bruteForce(points) {
     const n = points.length;
 
     // Handle edge cases
     if (n === 0) return [];
-    if (n === 1) return [];
-    if (n === 2) {
-        return [
-            { from: points[0], to: points[1] },
-            { from: points[1], to: points[0] }
-        ];
-    }
+    if (n === 1) return [points[0]];
+    if (n === 2) return [points[0], points[1], points[0]];
 
     // Precompute distance matrix
     const dist = Array.from({ length: n }, () => Array(n).fill(0));
@@ -38,9 +38,6 @@ export function bruteForce(points) {
     let bestPath = null;
     let bestCost = Infinity;
 
-    /**
-     * Lower bound calculation using minimum spanning tree approximation
-     */
     function calculateLowerBound(visited, currentCost, lastCity) {
         let bound = currentCost;
         const unvisited = [];
@@ -53,12 +50,10 @@ export function bruteForce(points) {
         }
 
         if (unvisited.length === 0) {
-            // Complete tour - add return cost
             return bound + dist[lastCity][0];
         }
 
         if (unvisited.length === 1) {
-            // One city left - add cost to visit it and return
             const city = unvisited[0];
             return bound + dist[lastCity][city] + dist[city][0];
         }
@@ -70,26 +65,19 @@ export function bruteForce(points) {
         }
         bound += minFromLast;
 
-        // Add minimum spanning tree cost for remaining cities
+        // Simple MST approximation
         if (unvisited.length > 1) {
-            // Simple MST approximation: sum of two smallest edges for each unvisited city
             for (const city of unvisited) {
                 const edges = [];
-
-                // Edges to other unvisited cities
                 for (const otherCity of unvisited) {
                     if (city !== otherCity) {
                         edges.push(dist[city][otherCity]);
                     }
                 }
-
-                // Edge back to start
                 edges.push(dist[city][0]);
-
-                // Sort and take smallest edge (conservative bound)
                 edges.sort((a, b) => a - b);
                 if (edges.length > 0) {
-                    bound += edges[0] * 0.5; // Divide by 2 since MST uses each edge once
+                    bound += edges[0] * 0.5;
                 }
             }
         }
@@ -97,15 +85,11 @@ export function bruteForce(points) {
         return bound;
     }
 
-    /**
-     * Recursive branch and bound search
-     */
     function branchAndBound(path, visited, currentCost) {
         const currentCity = path[path.length - 1];
 
-        // If we've visited all cities
         if (path.length === n) {
-            const totalCost = currentCost + dist[currentCity][0]; // Return to start
+            const totalCost = currentCost + dist[currentCity][0];
             if (totalCost < bestCost) {
                 bestCost = totalCost;
                 bestPath = [...path];
@@ -113,58 +97,36 @@ export function bruteForce(points) {
             return;
         }
 
-        // Calculate lower bound for current state
         const lowerBound = calculateLowerBound(visited, currentCost, currentCity);
-
-        // Prune if bound exceeds current best
         if (lowerBound >= bestCost) {
             return;
         }
 
-        // Try all unvisited cities
         for (let nextCity = 0; nextCity < n; nextCity++) {
             if (!visited[nextCity]) {
-                // Mark as visited
                 visited[nextCity] = true;
                 path.push(nextCity);
 
-                // Recurse
-                branchAndBound(
-                    path,
-                    visited,
-                    currentCost + dist[currentCity][nextCity]
-                );
+                branchAndBound(path, visited, currentCost + dist[currentCity][nextCity]);
 
-                // Backtrack
                 path.pop();
                 visited[nextCity] = false;
             }
         }
     }
 
-    // Initialize search starting from city 0
     const initialVisited = Array(n).fill(false);
     initialVisited[0] = true;
-
     branchAndBound([0], initialVisited, 0);
 
-    // Convert indices back to edges with actual point objects
+    // Convert indices to actual points (include return to start)
     if (bestPath) {
-        const edges = [];
-        for (let i = 0; i < bestPath.length; i++) {
-            const fromIndex = bestPath[i];
-            const toIndex = bestPath[(i + 1) % bestPath.length]; // wrap back to start
-            edges.push({
-                from: points[fromIndex],
-                to: points[toIndex]
-            });
-        }
-        return edges;
+        return [...bestPath.map(i => points[i]), points[bestPath[0]]];
     }
 
-    // Fallback: return empty if no solution found
     return [];
 }
+
 
 export class BFManager {
     constructor(button) {

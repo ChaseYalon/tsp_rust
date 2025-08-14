@@ -50,17 +50,16 @@ class Point {
 }
 
 app.post("/solve", async (c) => {
-  const start = performance.now();
   const body = (await c.req.json()) as { pts: { x: number; y: number }[] };
   const points = parseToPoints(body);
-
+  const start = performance.now();
   await writeFileAndRunSolver(points);
+  const end = performance.now() - start;
 
   // Read solver output
   const outPath = join(OUTPUT_DIR, "OUT.tsp");
   const res = await Deno.readTextFile(outPath);
 
-  const end = performance.now() - start;
   const response = { pts: parseFileToPoints(res), time: end };
 
   return c.json(response);

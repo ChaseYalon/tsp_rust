@@ -236,8 +236,8 @@ class ReportGenerator {
 
             tbody.appendChild(row);
         }
-
         table.appendChild(tbody);
+        this.output.innerHTML = "";
         this.output.appendChild(table);
     }
 }
