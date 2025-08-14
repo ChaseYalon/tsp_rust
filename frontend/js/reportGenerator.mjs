@@ -129,7 +129,7 @@ export class ReportGenerator {
                     let cumulativeDist = 0;
                     let totalTime = 0;
                     for(let i = 0; i < testCount; i++){
-                        const response = await fetch("https://localhost/brute", {
+                        const response = await fetch(/brute", {
                             method: "POST",
                             headers: {
                                 "Content-Type": "application/json"
