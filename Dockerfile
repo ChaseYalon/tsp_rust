@@ -1,5 +1,5 @@
 # -------------------------------
-# Stage 1: Builder (Rust + Concorde)
+# Stage 1: Builder (Rust)
 # -------------------------------
 FROM fedora:rawhide AS builder
 
@@ -22,14 +22,19 @@ COPY ./solver ./solver
 WORKDIR /rust-build/solver
 RUN cargo build --release
 
+#---------------------------------
+# Stage 2: Build Concorde
+#---------------------------------
 # Download and prepare Concorde TSP solver
+FROM fedora:38 AS concorde-builder
 WORKDIR /app/concorde
-RUN wget -O concorde.gz https://www.math.uwaterloo.ca/tsp/concorde/downloads/codes/linux24/concorde.gz \
-    && gunzip -f concorde.gz \
-    && chmod +x concorde
-
+RUN dnf -y --setopt=timeout=10 update \
+    && dnf -y install gcc make tar curl autoconf automake
+COPY ./build-deps /app/concorde/
+RUN chmod +x ./concorde-build.sh \
+    && ./concorde-build.sh
 #-------------------------------
-# Stage 2: LKH
+# Stage 3: LKH
 #-------------------------------
 FROM fedora:rawhide AS lkh-builder
 WORKDIR /app/lkh
@@ -43,7 +48,7 @@ RUN wget http://webhotel4.ruc.dk/~keld/research/LKH/LKH-2.0.11.tgz \
     && mv LKH-2.0.11/LKH lkh
 
 # ------------------------------- 
-# Stage 3: Runtime (Deno + glibc + LKH + Concorde)
+# Stage 4: Runtime (Deno + glibc + LKH + Concorde)
 # -------------------------------
 FROM fedora:rawhide
 RUN dnf -y --setopt=timeout=10 update \
@@ -65,7 +70,7 @@ COPY ./backend/output ./backend/output
 COPY ./solver ./solver
 
 # Copy Concorde executable from builder
-COPY --from=builder /app/concorde ./concorde
+COPY --from=concorde-builder /app/concorde ./concorde
 
 # Copy compiled Rust binaries from builder
 COPY --from=builder /rust-build/solver/target ./solver/target
