@@ -7,7 +7,9 @@ use std::simd::{Simd};
 use std::simd::prelude::SimdPartialOrd;
 use std::env;
 use std::fs;
-use crate::reader::{no_post, should_edge_swap, should_log, should_or_opt, should_relp, write_to_tsp_file};
+
+use crate::math::path_dist;
+use crate::reader::{no_post, should_edge_swap, should_lkh, should_log, should_or_opt, should_relp, write_to_tsp_file};
 use crate::relp::{remove_points_from_hull, find_lowest_lda_points};
 
 mod relp;
@@ -20,7 +22,6 @@ type SimdF32 = Simd<f32, 8>;
 
 fn insert_point(hull: &[shared::Point], inner_points: &[shared::Point]) -> relp::InsertPointResult {
     let hull_len = hull.len();
-
     // Precompute and cache A–B segments (wraparound included)
     let mut a_x_cache = Vec::with_capacity(hull_len);
     let mut a_y_cache = Vec::with_capacity(hull_len);
@@ -214,6 +215,7 @@ fn main() {
             update_hull(&result, &mut hull, &mut new_inner_hull, &mut insert_log);
         }
     }
+    println!("{:.2?}", path_dist(&hull));
 
     let o_end = o_start.elapsed().as_millis_f32();
     let new_dist = math::path_dist(&hull);

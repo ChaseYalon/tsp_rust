@@ -61,6 +61,15 @@ pub fn no_post() -> bool {
     }
     return false;
 }
+
+pub fn should_lkh() -> bool {
+    let args: Vec<String> = env::args().collect();
+    let snp = String::from("--no-lkh");
+    if args.contains(&snp){
+        return true;
+    }
+    return false;
+}
 pub fn parse_file(file: &String) -> Vec<shared::Point> {
     let parts: Vec<&str> = file.split("NODE_COORD_SECTION").collect();
     if parts.len() < 2 {

@@ -101,7 +101,7 @@ app.post("/lkh", async (c) => {
 PROBLEM_FILE = ${tspPath}
 MOVE_TYPE = 5
 PATCHING_C = 3
-RUNS = 10
+RUNS = ${points.length / 100}
 `;
   await Deno.writeTextFile(parPath, parContent);
 
