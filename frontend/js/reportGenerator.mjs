@@ -1,4 +1,4 @@
-import { christofidesAlgo, nearestNeighbor } from "./util_algos.mjs";
+import { christofidesAlgo } from "./util_algos.mjs";
 
 async function solve(points) {
     let to_send = JSON.stringify({pts: points});
@@ -129,7 +129,7 @@ export class ReportGenerator {
                     let cumulativeDist = 0;
                     let totalTime = 0;
                     for(let i = 0; i < testCount; i++){
-                        const response = await fetch(/brute", {
+                        const response = await fetch("/brute", {
                             method: "POST",
                             headers: {
                                 "Content-Type": "application/json"
@@ -162,17 +162,26 @@ export class ReportGenerator {
                 }
             },
             {
-                name: "Nearest Neighbor",
+                name: "Lin-Kernighan heuristic",
                 enabled: this.algoArray[2],
                 runner: async (pointCount, testCount) => {
                     let cumulativeDist = 0;
-                    let start = performance.now();
+                    let totalTime = 0;
                     for(let i = 0; i < testCount; i++){
-                        let points = globalPoints[i];
-                        cumulativeDist += pathDist(nearestNeighbor(points));
+                        const response = await fetch("/lkh", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify(globalPoints[i])
+                        });
+                        const jsonData = await response.json();
+                        cumulativeDist += jsonData.dist;
+                        totalTime += jsonData.time;
                     }
-                    let totalTime = performance.now() - start;
-                    return { cumulativeDist, totalTime };
+                    //Adjust from s to ms
+                    totalTime *= 1000
+                    return {cumulativeDist, totalTime};
                 }
             },
             {
