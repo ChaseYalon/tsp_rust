@@ -1,0 +1,8 @@
+# Ignore hidden and editor files
+**/.git
+**/.gitignore
+**/.vscode
+**/.cargo
+**/*.lock
+**/target
+**/node_modules
