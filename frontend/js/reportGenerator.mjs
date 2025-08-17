@@ -51,6 +51,85 @@ function calcDist(a, b){
     return Math.sqrt(((a.x - b.x) * (a.x - b.x)) + ((a.y - b.y) * (a.y - b.y)));
 }
 
+class Algorithm {
+    /**
+     * 
+     * @param {string} name - Name of the algorithm
+     * @param {bool} isOptimal - Represents if the algorithm is optimal
+     * @param {async (Point[][], number) => {number, number}} runner - Runner of the function, takes in a point count and a test count and returns a cumulativeDist and a cumulativeTime in ms
+     */
+    constructor(name, isOptimal, runner){
+        this.name = name;
+        this.isOptimal = isOptimal;
+        this.runner = runner;
+    }
+
+}
+
+const concorde = new Algorithm('Concorde', true, async (gPoints, testCount) => {
+    let cumulativeDist = 0;
+    let totalTime = 0;
+    for(let i = 0; i < testCount; i++){
+        const response = await fetch("/brute", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(gPoints[i])
+        });
+        const jsonData = await response.json();
+        cumulativeDist += jsonData.dist;
+        totalTime += jsonData.time;
+    }
+    //Adjust from s to ms
+    totalTime *= 1000
+    return {cumulativeDist, totalTime};
+})
+
+const mecum = new Algorithm('Mecum', false, async (gPoints, testCount) => {
+    let cumulativeDist = 0;
+    let totalTime = 0;
+    for(let i = 0; i < testCount; i++){
+        let points = [...gPoints[i]];
+        let res = await solve(points);
+        totalTime += res.time;
+        cumulativeDist += pathDist(res.pts);
+        // Note: If your solve function returns timing info, add it here
+    }
+    return { cumulativeDist, totalTime };
+})
+
+const lkh = new Algorithm('Lin-Kernighan Heuristic', false, async (gPoints, testCount) => {
+    let cumulativeDist = 0;
+    let totalTime = 0;
+    for(let i = 0; i < testCount; i++){
+        let points = [...gPoints[i]]
+        const response = await fetch("/lkh", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(points)
+        });
+        const jsonData = await response.json();
+        cumulativeDist += jsonData.dist;
+        totalTime += jsonData.time;
+    }
+    //Adjust from s to ms
+    totalTime *= 1000
+    return {cumulativeDist, totalTime};
+})
+
+const christ = new Algorithm('Christofides Algorithm**', false, async (gPoints, testCount) => {
+    let cumulativeDist = 0;
+    let start = performance.now();
+    for(let i = 0; i < testCount; i++){
+        let points = [...gPoints[i]];
+        cumulativeDist += pathDist(christofidesAlgo(points));
+    }
+    let totalTime = performance.now() - start;
+    return { cumulativeDist, totalTime };
+})
 export class ReportGenerator {
     /**
      * 
@@ -58,24 +137,24 @@ export class ReportGenerator {
      * @param {HTMLDivElement} output - Div to write output to
      * @param {HTMLInputElement} ldachek - checkbox to indicate if algorithm should be run
      * @param {HTMLInputElement} bfcheck - checkbox to indicate if algorithm should be run
-     * @param {HTMLInputElement} nncheck- checkbox to indicate if algorithm should be run
+     * @param {HTMLInputElement} lkhcheck- checkbox to indicate if algorithm should be run
      * @param {HTMLInputElement} cacheck - checkbox to indicate if algorithm should be run
      * @param {HTMLInputElement} pointCount - Represents how many points per test
      * @param {HTMLInputElement} testCount - Represents how many tests per point
      */
-    constructor(output, ldachek, bfcheck, nncheck, cacheck, pointCount, testCount){
+    constructor(output, ldachek, bfcheck, lkhcheck, cacheck, pointCount, testCount){
         this.output = output;
         this.ldachek = ldachek;
         this.bfcheck = bfcheck;
-        this.nncheck = nncheck;
+        this.lkhcheck = lkhcheck;
         this.cacheck = cacheck;
         this.pointCount = pointCount;
         this.testCount = testCount;
 
-        this.algoArray = [this.ldachek.checked, this.bfcheck.checked, this.nncheck.checked, this.cacheck.checked];
+        this.algoArray = [this.ldachek.checked, this.bfcheck.checked, this.lkhcheck.checked, this.cacheck.checked];
         this.ldachek.addEventListener('click', () => {this.algoArray[0] = this.ldachek.checked});
         this.bfcheck.addEventListener('click', () => {this.algoArray[1] = this.bfcheck.checked});
-        this.nncheck.addEventListener('click', () => {this.algoArray[2] = this.nncheck.checked});
+        this.lkhcheck.addEventListener('click', () => {this.algoArray[2] = this.lkhcheck.checked});
         this.cacheck.addEventListener('click', () => {this.algoArray[3] = this.cacheck.checked});
     }
     async generate(){
@@ -120,86 +199,11 @@ export class ReportGenerator {
         // </Create table>
 
         // Define algorithms with their configurations
-        const algorithms = [
-            {
-                name: "Concorde",
-                enabled: true,
-                isOptimal: true,
-                runner: async (pointCount, testCount) => {
-                    let cumulativeDist = 0;
-                    let totalTime = 0;
-                    for(let i = 0; i < testCount; i++){
-                        const response = await fetch("/brute", {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json"
-                            },
-                            body: JSON.stringify(globalPoints[i])
-                        });
-                        const jsonData = await response.json();
-                        cumulativeDist += jsonData.dist;
-                        totalTime += jsonData.time;
-                    }
-                    //Adjust from s to ms
-                    totalTime *= 1000
-                    return {cumulativeDist, totalTime};
-                }
-            },
-            {
-                name: "MECUM",
-                enabled: this.algoArray[0],
-                runner: async (pointCount, testCount) => {
-                    let cumulativeDist = 0;
-                    let totalTime = 0;
-                    for(let i = 0; i < testCount; i++){
-                        let points = globalPoints[i];
-                        let res = await solve(points);
-                        totalTime += res.time;
-                        cumulativeDist += pathDist(res.pts);
-                        // Note: If your solve function returns timing info, add it here
-                    }
-                    return { cumulativeDist, totalTime };
-                }
-            },
-            {
-                name: "Lin-Kernighan heuristic",
-                enabled: this.algoArray[2],
-                runner: async (pointCount, testCount) => {
-                    let cumulativeDist = 0;
-                    let totalTime = 0;
-                    for(let i = 0; i < testCount; i++){
-                        const response = await fetch("/lkh", {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json"
-                            },
-                            body: JSON.stringify(globalPoints[i])
-                        });
-                        const jsonData = await response.json();
-                        cumulativeDist += jsonData.dist;
-                        totalTime += jsonData.time;
-                    }
-                    //Adjust from s to ms
-                    totalTime *= 1000
-                    return {cumulativeDist, totalTime};
-                }
-            },
-            {
-                name: "Christofides Algorithm**",
-                enabled: this.algoArray[3],
-                runner: async (pointCount, testCount) => {
-                    let cumulativeDist = 0;
-                    let start = performance.now();
-                    for(let i = 0; i < testCount; i++){
-                        let points = globalPoints[i];
-                        cumulativeDist += pathDist(christofidesAlgo(points));
-                    }
-                    let totalTime = performance.now() - start;
-                    return { cumulativeDist, totalTime };
-                }
-            }
-        ];
-
+        const algorithms = [concorde, mecum, lkh, christ];
+        concorde.enabled = true;
+        this.algoArray[0] ? mecum.enabled = true : mecum.enabled = false;
+        this.algoArray[2] ? lkh.enabled = true : lkh.enabled = false;
+        this.algoArray[3] ? christ.enabled = true: christ.enabled = false;
         // Run enabled algorithms
         for (const algo of algorithms) {
             if (!algo.enabled) continue;
@@ -209,7 +213,7 @@ export class ReportGenerator {
                 throw new Error(`Point count too great for ${algo.name}`);
             }
 
-            const result = await algo.runner(pointCount, testCount);
+            const result = await algo.runner(globalPoints, testCount);
             
             // Store brute force distance for comparison
             if (algo.isOptimal) {
@@ -243,13 +247,13 @@ export class ReportGenerator {
 const reptcont = document.getElementById("report-container");
 const ldachek = document.getElementById("lda-check");
 const bfcheck = document.getElementById('bf-check');
-const nncheck = document.getElementById('nn-check');
+const lkhcheck = document.getElementById('nn-check');
 //Christofides algorithm check
 const cacheck = document.getElementById('chris-check');
 const pointCount = document.getElementById('pt-count');
 const testCount = document.getElementById('test-count');
 
-let generator = new ReportGenerator(reptcont, ldachek, bfcheck, nncheck, cacheck, pointCount, testCount);
+let generator = new ReportGenerator(reptcont, ldachek, bfcheck, lkhcheck, cacheck, pointCount, testCount);
 window.addEventListener('workerReady', async () => {
     console.log('Worker is ready, now call generate()');
     await generator.generate();
