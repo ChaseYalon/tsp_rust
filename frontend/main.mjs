@@ -1,4 +1,4 @@
-import { BFManager, /*bruteForce*/ } from "./js/bruteforce.mjs";
+import { BFManager } from "./js/bruteforce.mjs";
 import { Custom_Canvas } from "./js/canvas.mjs";
 
 export class Point {

@@ -135,7 +135,7 @@ RUNS = ${points.length / 100}
 app.get("/", (c) => sendHtml(c, "index.html"));
 app.get("/about", (c) => sendHtml(c, "about.html"));
 app.get("/data", (c) => sendHtml(c, "data.html"));
-
+app.get("/server-err", (c) => sendHtml(c, "errs/500.html"));
 // --- Static ---
 app.use("/static/*", serveStatic({ root: "./" }));
 app.use("*", serveStatic({ root: "./", rewriteRequestPath: (path) => path.replace(/^\//, "/frontend/") }));
@@ -191,13 +191,12 @@ async function writeFileAndRunSolver(input: Point[]): Promise<void> {
 
   let executablePath = possiblePaths[0];
   for (const path of possiblePaths) {
-    try {
-      const stat = await Deno.stat(path);
-      if (stat.isFile) {
-        executablePath = path;
-        break;
-      }
-    } catch {}
+    const stat = await Deno.stat(path);
+    if (stat.isFile) {
+      executablePath = path;
+      break;
+    }
+    
   }
 
   const command = new Deno.Command(executablePath, {

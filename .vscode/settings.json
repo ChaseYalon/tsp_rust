@@ -1,10 +1,14 @@
 {
     "cSpell.words": [
+        "addbtn",
         "bfcheck",
         "bfrow",
+        "brutebtn",
+        "bruteforce",
         "cacheck",
         "Christofides",
         "christrow",
+        "clearbtn",
         "Eulerian",
         "generatebtn",
         "Kernighan",
@@ -16,6 +20,7 @@
         "pabove",
         "relp",
         "reptcont",
+        "solvebtn",
         "Yalon"
     ]
 }

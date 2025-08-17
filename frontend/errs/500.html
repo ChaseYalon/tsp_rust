@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <title>MECUM</title>
+        <link rel="icon" href="imgs/globe.ico">
+        <link rel="stylesheet" href="stylesheet.css">
+
+    </head>
+    <body>
+        <div class="center" >
+            <div style="display: inline-block">
+                <h2 >Sorry! Thats an internal service error, please fell free to try again</h2>
+                <br>
+                <h3 id="redirect" class="center" >You will be redirected in 10 seconds</h3>
+            </div>
+        </div>
+    </body>
+    <script>
+        let secondsLeft = 10;
+        const redirect = document.getElementById("redirect");
+        setInterval(()=>{
+            secondsLeft--;
+            redirect.innerHTML = `You will be redirected in ${secondsLeft} seconds`;
+            if(secondsLeft <= 0){
+                window.location.href = "/"
+            }
+        },1000)
+    </script>
+</html>

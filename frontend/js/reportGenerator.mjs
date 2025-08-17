@@ -63,20 +63,27 @@ class Algorithm {
         this.isOptimal = isOptimal;
         this.runner = runner;
     }
-
+    static redirect(){
+        window.location.href = "/server-err";
+    }
 }
 
 const concorde = new Algorithm('Concorde', true, async (gPoints, testCount, pb) => {
     let cumulativeDist = 0;
     let totalTime = 0;
     for(let i = 0; i < testCount; i++){
-        const response = await fetch("/brute", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(gPoints[i])
-        });
+        try{
+            const response = await fetch("/brute", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(gPoints[i])
+            });
+        } catch {
+            this.redirect();
+        }
+
         const jsonData = await response.json();
         cumulativeDist += jsonData.dist;
         totalTime += jsonData.time;
@@ -92,7 +99,11 @@ const mecum = new Algorithm('Mecum', false, async (gPoints, testCount, pb) => {
     let totalTime = 0;
     for(let i = 0; i < testCount; i++){
         let points = [...gPoints[i]];
-        let res = await solve(points);
+        try{
+            let res = await solve(points);
+        } catch {
+            this.redirect();
+        }
         totalTime += res.time;
         cumulativeDist += pathDist(res.pts);
         pb.value++;
@@ -105,13 +116,18 @@ const lkh = new Algorithm('Lin-Kernighan Heuristic', false, async (gPoints, test
     let totalTime = 0;
     for(let i = 0; i < testCount; i++){
         let points = [...gPoints[i]]
-        const response = await fetch("/lkh", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(points)
-        });
+        try{
+            const response = await fetch("/lkh", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(points)
+            });
+        } catch {
+            this.redirect();
+        }
+
         const jsonData = await response.json();
         cumulativeDist += jsonData.dist;
         totalTime += jsonData.time;
