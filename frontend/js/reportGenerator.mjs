@@ -56,7 +56,7 @@ class Algorithm {
      * 
      * @param {string} name - Name of the algorithm
      * @param {bool} isOptimal - Represents if the algorithm is optimal
-     * @param {async (Point[][], number) => {number, number}} runner - Runner of the function, takes in a point count and a test count and returns a cumulativeDist and a cumulativeTime in ms
+     * @param {async (Point[][], number, HTMLProgressElement) => {number, number}} runner - Runner of the function, takes in a point count and a test count and returns a cumulativeDist and a cumulativeTime in ms
      */
     constructor(name, isOptimal, runner){
         this.name = name;
@@ -66,7 +66,7 @@ class Algorithm {
 
 }
 
-const concorde = new Algorithm('Concorde', true, async (gPoints, testCount) => {
+const concorde = new Algorithm('Concorde', true, async (gPoints, testCount, pb) => {
     let cumulativeDist = 0;
     let totalTime = 0;
     for(let i = 0; i < testCount; i++){
@@ -80,13 +80,14 @@ const concorde = new Algorithm('Concorde', true, async (gPoints, testCount) => {
         const jsonData = await response.json();
         cumulativeDist += jsonData.dist;
         totalTime += jsonData.time;
+        pb.value++;
     }
     //Adjust from s to ms
     totalTime *= 1000
     return {cumulativeDist, totalTime};
 })
 
-const mecum = new Algorithm('Mecum', false, async (gPoints, testCount) => {
+const mecum = new Algorithm('Mecum', false, async (gPoints, testCount, pb) => {
     let cumulativeDist = 0;
     let totalTime = 0;
     for(let i = 0; i < testCount; i++){
@@ -94,12 +95,12 @@ const mecum = new Algorithm('Mecum', false, async (gPoints, testCount) => {
         let res = await solve(points);
         totalTime += res.time;
         cumulativeDist += pathDist(res.pts);
-        // Note: If your solve function returns timing info, add it here
+        pb.value++;
     }
     return { cumulativeDist, totalTime };
 })
 
-const lkh = new Algorithm('Lin-Kernighan Heuristic', false, async (gPoints, testCount) => {
+const lkh = new Algorithm('Lin-Kernighan Heuristic', false, async (gPoints, testCount, pb) => {
     let cumulativeDist = 0;
     let totalTime = 0;
     for(let i = 0; i < testCount; i++){
@@ -114,18 +115,20 @@ const lkh = new Algorithm('Lin-Kernighan Heuristic', false, async (gPoints, test
         const jsonData = await response.json();
         cumulativeDist += jsonData.dist;
         totalTime += jsonData.time;
+        pb.value++;
     }
     //Adjust from s to ms
     totalTime *= 1000
     return {cumulativeDist, totalTime};
 })
 
-const christ = new Algorithm('Christofides Algorithm**', false, async (gPoints, testCount) => {
+const christ = new Algorithm('Christofides Algorithm**', false, async (gPoints, testCount, pb) => {
     let cumulativeDist = 0;
     let start = performance.now();
     for(let i = 0; i < testCount; i++){
         let points = [...gPoints[i]];
         cumulativeDist += pathDist(christofidesAlgo(points));
+        pb.value++;
     }
     let totalTime = performance.now() - start;
     return { cumulativeDist, totalTime };
@@ -179,7 +182,6 @@ export class ReportGenerator {
             alert("Point and test count must be numbers, please try again");
             throw new Error("Point and test count not numbers");
         }
-
         let globalPoints = new Array(testCount).fill(0).map(() => new Array(pointCount).fill(0).map(() => ({x: Math.random() * 800,y: Math.random() * 500})));
         // </Initialize point and test count>
 
@@ -204,6 +206,12 @@ export class ReportGenerator {
         this.algoArray[0] ? mecum.enabled = true : mecum.enabled = false;
         this.algoArray[2] ? lkh.enabled = true : lkh.enabled = false;
         this.algoArray[3] ? christ.enabled = true: christ.enabled = false;
+        const pb = document.createElement('progress');
+        let algosEnabledCount = this.algoArray.reduce((acc, e) => acc + (e ? 1 : 0), 0) - 1;
+        pb.max = algosEnabledCount * testCount;
+        pb.value = 0;
+        this.output.appendChild(pb);
+
         // Run enabled algorithms
         for (const algo of algorithms) {
             if (!algo.enabled) continue;
@@ -213,7 +221,7 @@ export class ReportGenerator {
                 throw new Error(`Point count too great for ${algo.name}`);
             }
 
-            const result = await algo.runner(globalPoints, testCount);
+            const result = await algo.runner(globalPoints, testCount, pb);
             
             // Store brute force distance for comparison
             if (algo.isOptimal) {

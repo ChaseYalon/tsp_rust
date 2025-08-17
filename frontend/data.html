@@ -62,6 +62,31 @@
                 font-size: 1.3rem;
                 margin: 0rem;
             }
+            /* base progress element */
+                progress {
+                width: 60%;
+                height: 20%;
+                border: none;
+                background-color: #eee;        /* background behind the bar */
+                border-radius: 10px;
+                overflow: hidden;              /* for rounded corners */
+            }
+
+            /* the filled portion (WebKit browsers: Chrome, Safari) */
+            progress::-webkit-progress-value {
+                background-color: #118198;
+            }
+
+            /* the empty / unfilled portion (WebKit) */
+            progress::-webkit-progress-bar {
+                background-color: #eee;
+            }
+
+            /* Firefox – filled portion */
+            progress::-moz-progress-bar {
+                background-color: #118198;
+            }
+
         </style>
     </head>
     <body>
