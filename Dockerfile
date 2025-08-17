@@ -29,10 +29,12 @@ RUN cargo build --release
 FROM fedora:38 AS concorde-builder
 WORKDIR /app/concorde
 RUN dnf -y --setopt=timeout=10 update \
-    && dnf -y install gcc make tar curl autoconf automake
-COPY ./build-deps /app/concorde/
-RUN chmod +x ./concorde-build.sh \
-    && ./concorde-build.sh
+    && dnf -y install gcc make tar curl autoconf automake wget
+
+RUN wget https://www.math.uwaterloo.ca/tsp/concorde/downloads/codes/linux24/concorde.gz \
+    && gunzip concorde.gz \
+    && chmod +x concorde
+
 #-------------------------------
 # Stage 3: LKH
 #-------------------------------
