@@ -2,15 +2,13 @@
 #![feature(duration_millis_float)]
 use std::time::Instant;
 use indicatif::ProgressBar;
-use kdtree::KdTree;
 use rayon::prelude::*;
 use std::simd::{Simd};
-use std::simd::prelude::SimdPartialOrd;
 use std::env;
 use std::fs;
 
 use crate::math::path_dist;
-use crate::precompute::calc_kd_tree;
+use crate::precompute::{SpatialGrid, calculate_search_radius};
 use crate::reader::{no_post, should_edge_swap, should_log, should_or_opt, should_relp, write_to_tsp_file};
 use crate::relp::{remove_points_from_hull, find_lowest_lda_points};
 
@@ -21,38 +19,31 @@ mod math;
 mod edges;
 mod or_opt;
 mod precompute;
+
 type SimdF32 = Simd<f32, 8>;
 
+#[inline(never)]
 fn insert_point(
     hull: &[shared::Point], 
-    inner_points: &[shared::Point], 
-    kdtree: &KdTree<f32, shared::Point, [f32; 2]>,
+    spatial_grid: &SpatialGrid,
     n: usize
 ) -> relp::InsertPointResult {
     let hull_len = hull.len();
-    
-    // Build HashSet once for fast inner_points lookup
-    let inner_points_set: std::collections::HashSet<shared::Point> = 
-        inner_points.iter().copied().collect();
+    let search_radius = calculate_search_radius(hull);
     
     // Process hull edges in parallel
     (0..hull_len).into_par_iter().map(|j| {
         let a = hull[j];
         let b = hull[(j + 1) % hull_len];
         
-        // Use edge midpoint as query point for kdtree
-        let query_point = shared::Point {
-            x: (a.x + b.x) / 2.0,
-            y: (a.y + b.y) / 2.0,
-        };
+        // Get candidates from spatial grid using edge-based query
+        let candidates = spatial_grid.query_edge_candidates(a, b, search_radius);
         
-        // Get candidates from the main kdtree
-        let closest_points = precompute::nearest_k_points(kdtree, query_point, n);
-        
-        // Filter to only valid candidates using O(1) HashSet lookup
-        let mut valid_candidates = Vec::with_capacity(n.min(closest_points.len()));
-        for point in closest_points {
-            if inner_points_set.contains(&point) {
+        // Filter to only include points that are actually in the spatial grid
+        // (i.e., haven't been removed yet - represents inner_points)
+        let mut valid_candidates = Vec::with_capacity(candidates.len().min(n));
+        for point in candidates {
+            if spatial_grid.contains_point(point) {
                 valid_candidates.push(point);
                 // Early termination if we have enough candidates
                 if valid_candidates.len() >= n.min(32) {
@@ -125,6 +116,7 @@ fn update_hull(
     result: &relp::InsertPointResult,
     hull: &mut Vec<shared::Point>,
     inner_hull: &mut Vec<shared::Point>,
+    spatial_grid: &mut SpatialGrid,
     insert_log: &mut Vec<relp::InsertPointResult>,
 ) {
     // Log this insertion for potential post-processing
@@ -134,6 +126,9 @@ fn update_hull(
     if let Some(pos) = inner_hull.iter().position(|&p| p == result.best_c) {
         inner_hull.remove(pos);
     }
+    
+    // Remove from spatial grid
+    spatial_grid.remove_point(result.best_c);
 
     // Insert the point after best_a in the hull
     if let Some(pos) = hull.iter().position(|&p| p == result.best_a) {
@@ -166,7 +161,10 @@ fn main() {
     let points: Vec<shared::Point> = reader::parse_file(&reader::read_file());
 
     let start = Instant::now();
-    let kdtree = calc_kd_tree(&points);
+    
+    // Build spatial grid instead of kdtree
+    let mut spatial_grid = SpatialGrid::new(&points);
+    
     let mut hull = math::convex_hull(&points);
     let mut inner_hull = reader::vec_diff(&points, &hull);
     let mut insert_log: Vec<relp::InsertPointResult> = Vec::with_capacity(inner_hull.len());
@@ -181,6 +179,11 @@ fn main() {
         std::process::exit(1);
     }
 
+    // Remove hull points from spatial grid since they're not "inner" points
+    for &hull_point in &hull {
+        spatial_grid.remove_point(hull_point);
+    }
+
     let sl = should_log();
     let mut pb: ProgressBar = ProgressBar::new(1);
     if sl {
@@ -190,14 +193,57 @@ fn main() {
         pb = ProgressBar::new(inner_hull.len().try_into().unwrap());
     }
     
-    // Use adaptive n based on problem size
     let adaptive_n = (64_usize).min(inner_hull.len() / 10).max(8);
     
-    while !inner_hull.is_empty() {
-        let result = insert_point(&hull, &inner_hull, &kdtree, adaptive_n);
-        update_hull(&result, &mut hull, &mut inner_hull, &mut insert_log);
+    let max_iterations = inner_hull.len() * 2; // Safety margin
+    let mut iteration_count = 0;
+    
+    while !inner_hull.is_empty() && iteration_count < max_iterations {
+        iteration_count += 1;
+        
+        let result = insert_point(&hull, &spatial_grid, adaptive_n);
+        
+        // If no valid insertion found, try fallback strategy
+        if result.lda <= 0.0 {
+            
+            // Find the closest point to any hull point as fallback
+            let mut best_fallback = relp::InsertPointResult {
+                lda: 0.1, // Small positive value to ensure insertion
+                best_a: hull[0],
+                best_c: inner_hull[0],
+            };
+            
+            let mut min_distance = f32::INFINITY;
+            for &inner_point in &inner_hull {
+                for (_i, &hull_point) in hull.iter().enumerate() {
+                    let dx = inner_point.x - hull_point.x;
+                    let dy = inner_point.y - hull_point.y;
+                    let distance = (dx * dx + dy * dy).sqrt();
+                    
+                    if distance < min_distance {
+                        min_distance = distance;
+                        best_fallback.best_a = hull_point;
+                        best_fallback.best_c = inner_point;
+                    }
+                }
+            }
+            
+            
+            update_hull(&best_fallback, &mut hull, &mut inner_hull, &mut spatial_grid, &mut insert_log);
+        } else {
+            update_hull(&result, &mut hull, &mut inner_hull, &mut spatial_grid, &mut insert_log);
+        }
+        
         if !sl {
             pb.inc(1);
+        }
+    }
+    
+    if iteration_count >= max_iterations {
+        println!("Hit iteration limit, possible infinite loop detected. Remaining points: {}", inner_hull.len());
+        // Force exit with remaining points
+        for &remaining_point in &inner_hull {
+            println!("Unprocessed point: ({}, {})", remaining_point.x, remaining_point.y);
         }
     }
     
@@ -230,11 +276,15 @@ fn main() {
         or_opt::multi_or_opt_optimization(&mut hull);
     }
     if !should_relp() {
+        // Rebuild spatial grid for re-optimization phase
         let mut new_inner_hull = find_lowest_lda_points(&insert_log, hull.len() / 8);
+        let mut reopt_spatial_grid = SpatialGrid::new(&new_inner_hull);
+        
         remove_points_from_hull(&mut hull, &new_inner_hull);
+        
         while !new_inner_hull.is_empty() {
-            let result = insert_point(&hull, &new_inner_hull, &kdtree, adaptive_n);
-            update_hull(&result, &mut hull, &mut new_inner_hull, &mut insert_log);
+            let result = insert_point(&hull, &reopt_spatial_grid, adaptive_n);
+            update_hull(&result, &mut hull, &mut new_inner_hull, &mut reopt_spatial_grid, &mut insert_log);
         }
     }
     println!("{:.2?}", path_dist(&hull));
