@@ -1,6 +1,6 @@
 use crate::shared::Point;
 // use std::collections::{HashMap,HashSet};
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet };
+use rustc_hash::{ FxHashMap as HashMap };
 pub struct SpatialGrid {
     grid: HashMap<(i32, i32), Vec<Point>>,
     cell_size: f32,
