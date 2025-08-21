@@ -1,6 +1,6 @@
 use crate::shared::Point;
-use std::collections::HashMap;
-
+// use std::collections::{HashMap,HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet };
 pub struct SpatialGrid {
     grid: HashMap<(i32, i32), Vec<Point>>,
     cell_size: f32,
@@ -24,7 +24,7 @@ impl SpatialGrid {
         // Cell size should be roughly 1/sqrt(n) of the diagonal for good distribution
         let cell_size = (diagonal / (points.len() as f32).sqrt()) * 0.5;
         
-        let mut grid = HashMap::new();
+        let mut grid = HashMap::with_capacity_and_hasher(points.len() * points.len(), Default::default());
         
         for &point in points {
             let cell = Self::point_to_cell(point, cell_size, min_x, min_y);
@@ -109,7 +109,7 @@ impl SpatialGrid {
         if let Some(points) = self.grid.get(&cell) {
             points.contains(&point)
         } else {
-            false
+            return false
         }
     }
 }
@@ -134,5 +134,5 @@ pub fn calculate_search_radius(hull: &[Point]) -> f32 {
     
     // Search radius should be proportional to average edge length
     // This prevents searching too far from relevant edges
-    avg_edge_length * 2.0
+    return avg_edge_length * 2.0
 }
