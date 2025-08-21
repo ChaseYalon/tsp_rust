@@ -72,17 +72,14 @@ const concorde = new Algorithm('Concorde', true, async (gPoints, testCount, pb) 
     let cumulativeDist = 0;
     let totalTime = 0;
     for(let i = 0; i < testCount; i++){
-        try{
-            const response = await fetch("/brute", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(gPoints[i])
-            });
-        } catch {
-            this.redirect();
-        }
+        const response = await fetch("/brute", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(gPoints[i])
+        });
+
 
         const jsonData = await response.json();
         cumulativeDist += jsonData.dist;
@@ -99,11 +96,8 @@ const mecum = new Algorithm('Mecum', false, async (gPoints, testCount, pb) => {
     let totalTime = 0;
     for(let i = 0; i < testCount; i++){
         let points = [...gPoints[i]];
-        try{
-            let res = await solve(points);
-        } catch {
-            this.redirect();
-        }
+        let res = await solve(points);
+
         totalTime += res.time;
         cumulativeDist += pathDist(res.pts);
         pb.value++;
@@ -116,17 +110,14 @@ const lkh = new Algorithm('Lin-Kernighan Heuristic', false, async (gPoints, test
     let totalTime = 0;
     for(let i = 0; i < testCount; i++){
         let points = [...gPoints[i]]
-        try{
-            const response = await fetch("/lkh", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(points)
-            });
-        } catch {
-            this.redirect();
-        }
+        const response = await fetch("/lkh", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(points)
+        });
+
 
         const jsonData = await response.json();
         cumulativeDist += jsonData.dist;
@@ -216,6 +207,7 @@ export class ReportGenerator {
         tbody.appendChild(labelRow);
         // </Create table>
 
+        //Docker sucks
         // Define algorithms with their configurations
         const algorithms = [concorde, mecum, lkh, christ];
         concorde.enabled = true;

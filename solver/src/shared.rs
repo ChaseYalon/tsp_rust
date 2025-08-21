@@ -1,4 +1,5 @@
-use std::simd::{Simd};
+use std::simd::Simd;
+use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point {
@@ -11,4 +12,17 @@ impl Point {
         return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
     }
 }
+
+// Implement Hash for Point so it can be used in HashSet
+impl Hash for Point {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Convert f32 to bits for consistent hashing
+        self.x.to_bits().hash(state);
+        self.y.to_bits().hash(state);
+    }
+}
+
+// Implement Eq (required when implementing Hash with PartialEq)
+impl Eq for Point {}
+
 pub type SimdF32 = Simd<f32, 8>;

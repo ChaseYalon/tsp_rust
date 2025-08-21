@@ -10,6 +10,7 @@ winres = "0.1.12"
 
 [dependencies]
 indicatif = "0.17.11"
+kdtree = "0.7.0"
 rand = "0.8"
 rayon = "1.10.0"
 winres = "0.1.12"

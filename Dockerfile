@@ -20,6 +20,7 @@ RUN rustup install nightly && rustup default nightly
 # Copy solver source and build
 COPY ./solver ./solver
 WORKDIR /rust-build/solver
+
 RUN cargo build --release
 
 #---------------------------------
@@ -48,18 +49,20 @@ RUN wget http://webhotel4.ruc.dk/~keld/research/LKH/LKH-2.0.11.tgz \
     && make \
     && cd .. \
     && mv LKH-2.0.11/LKH lkh
-
 # ------------------------------- 
 # Stage 4: Runtime (Deno + glibc + LKH + Concorde)
 # -------------------------------
 FROM fedora:rawhide
 RUN dnf -y --setopt=timeout=10 update \
-    && dnf -y install curl unzip \
+    && dnf -y install curl unzip tar gzip \
     && dnf clean all
 
-# Install Deno
-RUN curl -fsSL https://deno.land/install.sh | sh
-ENV PATH="/root/.deno/bin:${PATH}"
+# Install amd64 Deno explicitly
+ENV DENO_VERSION=2.3.5
+RUN curl -fsSL https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/deno-x86_64-unknown-linux-gnu.zip -o deno.zip \
+    && unzip deno.zip -d /usr/local/bin \
+    && rm deno.zip
+ENV PATH="/usr/local/bin:${PATH}"
 
 WORKDIR /app
 
@@ -79,8 +82,6 @@ COPY --from=builder /rust-build/solver/target ./solver/target
 
 # Copy LKH binary from lkh-builder
 COPY --from=lkh-builder /app/lkh ./app/lkh
-
-# Make LKH executable
 RUN chmod +x ./app/lkh/lkh
 
 # Expose HTTPS port
