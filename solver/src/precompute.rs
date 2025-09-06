@@ -50,6 +50,8 @@ impl SpatialGrid {
         let mut candidates = Vec::new();
         
         // Sample multiple points along the edge for better candidate finding
+
+        /*old
         let num_samples = 5;
         for i in 0..=num_samples {
             let t = i as f32 / num_samples as f32;
@@ -66,8 +68,17 @@ impl SpatialGrid {
                 }
             }
         }
-        
-        candidates
+        */
+        let points_to_test = [edge_start, edge_end, Point {x: (edge_end.x + edge_start.x) / 2.0, y: (edge_end.y + edge_start.y) / 2.0}];
+        for point in points_to_test.iter(){
+            let nearby = self.query_radius(point.clone(), max_distance);
+            for candidate in nearby{
+                if !candidates.contains(&candidate){
+                    candidates.push(candidate);
+                }
+            }
+        }
+        return candidates
     }
     
     pub fn query_radius(&self, center: Point, radius: f32) -> Vec<Point> {

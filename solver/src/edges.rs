@@ -4,7 +4,8 @@ use std::simd::cmp::SimdPartialOrd;
 use crate::math;
 use crate::shared;
 type SimdBool = std::simd::Mask<i32, 8>;
-type SimdF32 = Simd<f32, 8>;#[inline(always)]
+type SimdF32 = Simd<f32, 8>;
+#[inline(always)]
 fn cross_product_simd(
     ax: SimdF32, ay: SimdF32,
     bx: SimdF32, by: SimdF32,
@@ -15,7 +16,7 @@ fn cross_product_simd(
     let ab_y = by - ay;
     let cd_x = dx - cx;
     let cd_y = dy - cy;
-    ab_x * cd_y - ab_y * cd_x
+    return ab_x * cd_y - ab_y * cd_x
 }
 
 #[inline(always)]
@@ -34,7 +35,7 @@ fn segments_intersect_simd(
     let straddle1 = (cp1.simd_gt(zero) & cp2.simd_lt(zero)) | (cp1.simd_lt(zero) & cp2.simd_gt(zero));
     let straddle2 = (cp3.simd_gt(zero) & cp4.simd_lt(zero)) | (cp3.simd_lt(zero) & cp4.simd_gt(zero));
     
-    straddle1 & straddle2
+    return straddle1 & straddle2
 }
 
 pub fn eliminate_crossings(tour: &mut Vec<shared::Point>) -> bool {
