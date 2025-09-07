@@ -1,11 +1,14 @@
 #![feature(portable_simd)]
 #![feature(duration_millis_float)]
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use indicatif::ProgressBar;
 use rayon::prelude::*;
 use std::simd::{Simd};
 use std::env;
 use std::fs;
+use std::sync::{Arc, Mutex};
+
+use std::io::Write;
 
 use crate::math::path_dist;
 use crate::precompute::{SpatialGrid, calculate_search_radius};
@@ -26,7 +29,7 @@ type SimdF32 = Simd<f32, 8>;
 fn insert_point(
     hull: &[shared::Point], 
     spatial_grid: &SpatialGrid,
-    n: usize
+    n: usize,
 ) -> relp::InsertPointResult {
     let hull_len = hull.len();
     let search_radius = calculate_search_radius(hull);
@@ -99,7 +102,6 @@ fn insert_point(
                 }
             }
         }
-        
         edge_best
     })
     .reduce(
@@ -118,6 +120,8 @@ fn update_hull(
     inner_hull: &mut Vec<shared::Point>,
     spatial_grid: &mut SpatialGrid,
     insert_log: &mut Vec<relp::InsertPointResult>,
+    mes: &Arc<Mutex<Vec<Duration>>>,
+    durr: Duration
 ) {
     // Log this insertion for potential post-processing
     insert_log.push(result.clone());
@@ -134,6 +138,8 @@ fn update_hull(
     if let Some(pos) = hull.iter().position(|&p| p == result.best_a) {
         hull.insert(pos + 1, result.best_c);
     }
+    let mut mesa = mes.lock().unwrap();
+    mesa.push(durr);
 }
 
 fn get_output_path() -> String {
@@ -154,12 +160,11 @@ fn get_output_path() -> String {
         }
     }
 }
-
 fn main() {
     rayon::ThreadPoolBuilder::new().build_global().unwrap();
 
     let points: Vec<shared::Point> = reader::parse_file(&reader::read_file());
-
+    let mes_arr: Arc<Mutex<Vec<Duration>>> = Arc::new(Mutex::new(Vec::with_capacity(points.len())));
     let start = Instant::now();
     
     // Build spatial grid instead of kdtree
@@ -200,9 +205,10 @@ fn main() {
     
     while !inner_hull.is_empty() && iteration_count < max_iterations {
         iteration_count += 1;
-        
+        let start = Instant::now();
         let result = insert_point(&hull, &spatial_grid, adaptive_n);
-        
+        let end = start.elapsed();
+
         // If no valid insertion found, try fallback strategy
         if result.lda <= 0.0 {
             
@@ -229,9 +235,9 @@ fn main() {
             }
             
             
-            update_hull(&best_fallback, &mut hull, &mut inner_hull, &mut spatial_grid, &mut insert_log);
+            update_hull(&best_fallback, &mut hull, &mut inner_hull, &mut spatial_grid, &mut insert_log , &mes_arr, Instant::now().elapsed());
         } else {
-            update_hull(&result, &mut hull, &mut inner_hull, &mut spatial_grid, &mut insert_log);
+            update_hull(&result, &mut hull, &mut inner_hull, &mut spatial_grid, &mut insert_log, &mes_arr, end);
         }
         
         if !sl {
@@ -264,6 +270,27 @@ fn main() {
     let output_path = get_output_path();
     
     if no_post() {
+        let mes_vec = mes_arr.lock().unwrap();
+        let nanos: Vec<u64> = mes_vec.iter().map(|d| d.as_nanos() as u64).collect();
+        
+        use std::fs::OpenOptions;
+        let mut file = OpenOptions::new()
+            .create(true)    // Create if doesn't exist
+            .append(true)    // Append to end of file
+            .open("MEASUREMENT.txt")
+            .expect("Failed to open file");
+        
+        // Write in human-readable format with timestamp
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        
+        writeln!(file, "Run at timestamp {}: {:?}", timestamp, nanos).expect("Failed to write file");
+        file.flush().expect("Failed to flush file");
+        println!("File written successfully");
+
         println!("Operation completed, written to file");
         write_to_tsp_file(&hull, &output_path);
         std::process::exit(0);
@@ -283,8 +310,10 @@ fn main() {
         remove_points_from_hull(&mut hull, &new_inner_hull);
         
         while !new_inner_hull.is_empty() {
+            let start = Instant::now();
             let result = insert_point(&hull, &reopt_spatial_grid, adaptive_n);
-            update_hull(&result, &mut hull, &mut new_inner_hull, &mut reopt_spatial_grid, &mut insert_log);
+            let end = start.elapsed();
+            update_hull(&result, &mut hull, &mut new_inner_hull, &mut reopt_spatial_grid, &mut insert_log, &mes_arr, end);
         }
     }
     println!("{:.2?}", path_dist(&hull));
@@ -296,7 +325,26 @@ fn main() {
     } else {
         println!("Operation completed, written to file");
     }
+    let mes_vec = mes_arr.lock().unwrap();
+    let nanos: Vec<u64> = mes_vec.iter().map(|d| d.as_nanos() as u64).collect();
     
-    // Always write to the consistent output path
+    use std::fs::OpenOptions;
+    let mut file = OpenOptions::new()
+        .create(true)    // Create if doesn't exist
+        .append(true)    // Append to end of file
+        .open("MEASUREMENT.txt")
+        .expect("Failed to open file");
+    
+    // Write in human-readable format with timestamp
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    
+    writeln!(file, "Run at timestamp {}: {:?}", timestamp, nanos).expect("Failed to write file");
+    file.flush().expect("Failed to flush file");
+    println!("File written successfully");
+
     write_to_tsp_file(&hull, &output_path);
 }

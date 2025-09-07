@@ -9,6 +9,7 @@ winres = "0.1.12"
 
 
 [dependencies]
+bytemuck = "1.23.2"
 indicatif = "0.17.11"
 kdtree = "0.7.0"
 rand = "0.8"
