@@ -1,6 +1,6 @@
+use crate::shared;
 use std::env;
 use std::fs;
-use crate::shared;
 use std::fs::File;
 use std::io::Write;
 pub fn read_file() -> String {
@@ -9,7 +9,7 @@ pub fn read_file() -> String {
         eprintln!("Usage: {} <filename>", args[0]);
         std::process::exit(1);
     }
-    if &args[1] == "help" || &args[1] == "--help" || &args[1] == "-help"{
+    if &args[1] == "help" || &args[1] == "--help" || &args[1] == "-help" {
         println!("To use run ./tsp.exe <PATH TO .tsp FILE>");
         std::process::exit(1);
     }
@@ -24,31 +24,31 @@ pub fn parse_num(input: &String) -> f32 {
 pub fn should_log() -> bool {
     let args: Vec<String> = env::args().collect();
     let sl = String::from("--no-log");
-    if args.contains(&sl){
+    if args.contains(&sl) {
         return true;
     }
     return false;
 }
-pub fn should_or_opt() -> bool{
+pub fn should_or_opt() -> bool {
     let args: Vec<String> = env::args().collect();
     let soo = String::from("--no-or-opt");
-    if args.contains(&soo){
+    if args.contains(&soo) {
         return true;
     }
     return false;
 }
-pub fn should_edge_swap() -> bool{
+pub fn should_edge_swap() -> bool {
     let args: Vec<String> = env::args().collect();
     let ses = String::from("--no-edge-switch");
-    if args.contains(&ses){
+    if args.contains(&ses) {
         return true;
     }
     return false;
 }
-pub fn should_relp() -> bool{
+pub fn should_relp() -> bool {
     let args: Vec<String> = env::args().collect();
     let srelp = String::from("--no-relp");
-    if args.contains(&srelp){
+    if args.contains(&srelp) {
         return true;
     }
     return false;
@@ -56,12 +56,11 @@ pub fn should_relp() -> bool{
 pub fn no_post() -> bool {
     let args: Vec<String> = env::args().collect();
     let snp = String::from("--no-post");
-    if args.contains(&snp){
+    if args.contains(&snp) {
         return true;
     }
     return false;
 }
-
 
 pub fn parse_file(file: &String) -> Vec<shared::Point> {
     let parts: Vec<&str> = file.split("NODE_COORD_SECTION").collect();
@@ -88,12 +87,8 @@ pub fn parse_file(file: &String) -> Vec<shared::Point> {
 }
 
 pub fn vec_diff(a: &[shared::Point], b: &[shared::Point]) -> Vec<shared::Point> {
-    return a.iter()
-        .filter(|item| !b.contains(item))
-        .cloned()
-        .collect();
+    return a.iter().filter(|item| !b.contains(item)).cloned().collect();
 }
-
 
 pub fn write_to_tsp_file(tour: &Vec<shared::Point>, path: &str) {
     let mut to_write = format!(
@@ -113,5 +108,6 @@ NODE_COORD_SECTION
     }
 
     let mut file = File::create(path).expect("Failed to create file");
-    file.write_all(to_write.as_bytes()).expect("Failed to write to file");
+    file.write_all(to_write.as_bytes())
+        .expect("Failed to write to file");
 }

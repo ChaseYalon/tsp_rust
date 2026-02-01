@@ -1,5 +1,5 @@
 import { christofidesAlgo } from "./util_algos.mjs";
-
+let mecum_derivs = [];
 async function solve(points) {
     let to_send = JSON.stringify({pts: points});
     const response = await fetch("/solve", {
@@ -100,6 +100,7 @@ const mecum = new Algorithm('Mecum', false, async (gPoints, testCount, pb) => {
 
         totalTime += res.time;
         cumulativeDist += pathDist(res.pts);
+        mecum_derivs.push(pathDist(res.pts));
         pb.value++;
     }
     return { cumulativeDist, totalTime };
@@ -273,5 +274,23 @@ let generator = new ReportGenerator(reptcont, ldachek, bfcheck, lkhcheck, cachec
 window.addEventListener('workerReady', async () => {
     console.log('Worker is ready, now call generate()');
     await generator.generate();
+
+    // Compute average
+    let sum = mecum_derivs.reduce((acc, i) => acc + i, 0);
+    let average = sum / mecum_derivs.length;
+
+    // Compute variance
+    let diffs = mecum_derivs.map(item => Math.pow(item - average, 2));
+    let variance = diffs.reduce((acc, item) => acc + item, 0) / diffs.length;
+
+    // Compute standard deviation
+    let stdDev = Math.sqrt(variance);
+
+    // Get min and max
+    let max = Math.max(...mecum_derivs);
+    let min = Math.min(...mecum_derivs);
+
+    console.log(`Standard deviation: ${stdDev}, Variance: ${variance}, Max: ${max}, Min: ${min},StdDev%: ${stdDev / average}`);
+
     self.close();
 });

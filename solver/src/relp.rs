@@ -1,8 +1,8 @@
 //Reluctation points
 
-use std::collections::BinaryHeap;
-use std::cmp::Ordering;
 use crate::shared;
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 #[derive(Debug, Clone, Copy)]
 pub struct InsertPointResult {
     pub lda: f32,
@@ -36,10 +36,7 @@ impl Ord for LdaEntry {
     }
 }
 
-pub fn find_lowest_lda_points(
-    insert_log: &[InsertPointResult],
-    k: usize,
-) -> Vec<shared::Point> {
+pub fn find_lowest_lda_points(insert_log: &[InsertPointResult], k: usize) -> Vec<shared::Point> {
     let mut heap = BinaryHeap::with_capacity(k);
 
     for result in insert_log {

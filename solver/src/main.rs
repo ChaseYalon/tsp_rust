@@ -1,115 +1,118 @@
 #![feature(portable_simd)]
 #![feature(duration_millis_float)]
-use std::time::Instant;
 use indicatif::ProgressBar;
 use rayon::prelude::*;
-use std::simd::{Simd};
 use std::env;
 use std::fs;
+use std::time::Instant;
 
-use crate::math::path_dist;
 use crate::precompute::{SpatialGrid, calculate_search_radius};
-use crate::reader::{no_post, should_edge_swap, should_log, should_or_opt, should_relp, write_to_tsp_file};
-use crate::relp::{remove_points_from_hull, find_lowest_lda_points};
-
-mod relp;
-mod reader;
-mod shared;
-mod math;
+use crate::reader::{
+    no_post, should_edge_swap, should_log, should_or_opt, should_relp, write_to_tsp_file,
+};
+use crate::relp::{find_lowest_lda_points, remove_points_from_hull};
+use crate::shared::SimdF32;
 mod edges;
+mod math;
 mod or_opt;
 mod precompute;
-
-type SimdF32 = Simd<f32, 8>;
+mod reader;
+mod relp;
+mod shared;
 
 #[inline(never)]
 fn insert_point(
-    hull: &[shared::Point], 
+    hull: &[shared::Point],
     spatial_grid: &SpatialGrid,
-    n: usize
+    n: usize,
+    rand_dif: f32,
 ) -> relp::InsertPointResult {
     let hull_len = hull.len();
     let search_radius = calculate_search_radius(hull);
-    
+
     // Process hull edges in parallel
-    (0..hull_len).into_par_iter().map(|j| {
-        let a = hull[j];
-        let b = hull[(j + 1) % hull_len];
-        
-        // Get candidates from spatial grid using edge-based query
-        let candidates = spatial_grid.query_edge_candidates(a, b, search_radius);
-        
-        // Filter to only include points that are actually in the spatial grid
-        // (i.e., haven't been removed yet - represents inner_points)
-        let mut valid_candidates = Vec::with_capacity(candidates.len().min(n));
-        for point in candidates {
-            if spatial_grid.contains_point(point) {
-                valid_candidates.push(point);
-                // Early termination if we have enough candidates
-                if valid_candidates.len() >= n.min(32) {
-                    break;
+    (0..hull_len)
+        .into_par_iter()
+        .map(|j| {
+            let a = hull[j];
+            let b = hull[(j + 1) % hull_len];
+
+            // Get candidates from spatial grid using edge-based query
+            let candidates = spatial_grid.query_edge_candidates(a, b, search_radius);
+
+            // Filter to only include points that are actually in the spatial grid
+            // (i.e., haven't been removed yet - represents inner_points)
+            let mut valid_candidates = Vec::with_capacity(candidates.len().min(n));
+            for point in candidates {
+                if spatial_grid.contains_point(point) {
+                    valid_candidates.push(point);
+                    // Early termination if we have enough candidates
+                    if valid_candidates.len() >= n.min(32) {
+                        break;
+                    }
                 }
             }
-        }
-        
-        if valid_candidates.is_empty() {
-            return relp::InsertPointResult {
+
+            if valid_candidates.is_empty() {
+                return relp::InsertPointResult {
+                    lda: -1.0,
+                    best_a: shared::Point { x: 0.0, y: 0.0 },
+                    best_c: shared::Point { x: 0.0, y: 0.0 },
+                };
+            }
+
+            // Process candidates in SIMD chunks
+            let chunk_size = 8;
+            let mut edge_best = relp::InsertPointResult {
+                lda: -1.0,
+                best_a: a,
+                best_c: shared::Point { x: 0.0, y: 0.0 },
+            };
+
+            // Precompute edge constants for SIMD
+            let a_x_simd = SimdF32::splat(a.x);
+            let a_y_simd = SimdF32::splat(a.y);
+            let b_x_simd = SimdF32::splat(b.x);
+            let b_y_simd = SimdF32::splat(b.y);
+
+            for chunk in valid_candidates.chunks(chunk_size) {
+                let len = chunk.len();
+
+                // Load chunk into SIMD vectors
+                let mut c_x_arr = [0.0; 8];
+                let mut c_y_arr = [0.0; 8];
+                for i in 0..len {
+                    c_x_arr[i] = chunk[i].x;
+                    c_y_arr[i] = chunk[i].y;
+                }
+                let c_x = SimdF32::from_array(c_x_arr);
+                let c_y = SimdF32::from_array(c_y_arr);
+                let mut rng = rand::thread_rng();
+                // Calculate LDA for this edge with all candidates in the chunk
+                let curr_lda = math::lda(
+                    a_x_simd, a_y_simd, b_x_simd, b_y_simd, c_x, c_y, &mut rng, 0.0,
+                );
+
+                // Find best in this chunk and update edge_best if better
+                for lane in 0..len {
+                    if curr_lda[lane] > edge_best.lda {
+                        edge_best.lda = curr_lda[lane];
+                        edge_best.best_a = a;
+                        edge_best.best_c = chunk[lane];
+                    }
+                }
+            }
+
+            edge_best
+        })
+        .reduce(
+            || relp::InsertPointResult {
                 lda: -1.0,
                 best_a: shared::Point { x: 0.0, y: 0.0 },
                 best_c: shared::Point { x: 0.0, y: 0.0 },
-            };
-        }
-        
-        // Process candidates in SIMD chunks
-        let chunk_size = 8;
-        let mut edge_best = relp::InsertPointResult {
-            lda: -1.0,
-            best_a: a,
-            best_c: shared::Point { x: 0.0, y: 0.0 },
-        };
-        
-        // Precompute edge constants for SIMD
-        let a_x_simd = SimdF32::splat(a.x);
-        let a_y_simd = SimdF32::splat(a.y);
-        let b_x_simd = SimdF32::splat(b.x);
-        let b_y_simd = SimdF32::splat(b.y);
-        
-        for chunk in valid_candidates.chunks(chunk_size) {
-            let len = chunk.len();
-
-            // Load chunk into SIMD vectors
-            let mut c_x_arr = [0.0; 8];
-            let mut c_y_arr = [0.0; 8];
-            for i in 0..len {
-                c_x_arr[i] = chunk[i].x;
-                c_y_arr[i] = chunk[i].y;
-            }
-            let c_x = SimdF32::from_array(c_x_arr);
-            let c_y = SimdF32::from_array(c_y_arr);
-
-            // Calculate LDA for this edge with all candidates in the chunk
-            let curr_lda = math::lda(a_x_simd, a_y_simd, b_x_simd, b_y_simd, c_x, c_y);
-
-            // Find best in this chunk and update edge_best if better
-            for lane in 0..len {
-                if curr_lda[lane] > edge_best.lda {
-                    edge_best.lda = curr_lda[lane];
-                    edge_best.best_a = a;
-                    edge_best.best_c = chunk[lane];
-                }
-            }
-        }
-        
-        edge_best
-    })
-    .reduce(
-        || relp::InsertPointResult {
-            lda: -1.0,
-            best_a: shared::Point { x: 0.0, y: 0.0 },
-            best_c: shared::Point { x: 0.0, y: 0.0 },
-        },
-        |a, b| if a.lda > b.lda { a } else { b },
-    )
+            },
+            |a, b| if a.lda > b.lda { a } else { b },
+        )
 }
 
 fn update_hull(
@@ -126,7 +129,7 @@ fn update_hull(
     if let Some(pos) = inner_hull.iter().position(|&p| p == result.best_c) {
         inner_hull.remove(pos);
     }
-    
+
     // Remove from spatial grid
     spatial_grid.remove_point(result.best_c);
 
@@ -157,20 +160,23 @@ fn get_output_path() -> String {
 
 fn main() {
     rayon::ThreadPoolBuilder::new().build_global().unwrap();
-
+    
     let points: Vec<shared::Point> = reader::parse_file(&reader::read_file());
 
     let start = Instant::now();
-    
+
     // Build spatial grid instead of kdtree
     let mut spatial_grid = SpatialGrid::new(&points);
-    
+
     let mut hull = math::convex_hull(&points);
     let mut inner_hull = reader::vec_diff(&points, &hull);
     let mut insert_log: Vec<relp::InsertPointResult> = Vec::with_capacity(inner_hull.len());
 
     if hull.len() == 0 {
-        eprintln!("Hull length is zero, input was not read properly, args are {:#?}", env::args().collect::<Vec<_>>());
+        eprintln!(
+            "Hull length is zero, input was not read properly, args are {:#?}",
+            env::args().collect::<Vec<_>>()
+        );
         if let Some(arg) = env::args().nth(1) {
             eprintln!("File is {:?}", fs::read_to_string(arg));
         } else {
@@ -192,34 +198,33 @@ fn main() {
     if !sl {
         pb = ProgressBar::new(inner_hull.len().try_into().unwrap());
     }
-    
+
     let adaptive_n = (64_usize).min(inner_hull.len() / 10).max(8);
-    
+
     let max_iterations = inner_hull.len() * 2; // Safety margin
     let mut iteration_count = 0;
-    
+
     while !inner_hull.is_empty() && iteration_count < max_iterations {
         iteration_count += 1;
-        
-        let result = insert_point(&hull, &spatial_grid, adaptive_n);
-        
+
+        let result = insert_point(&hull, &spatial_grid, adaptive_n, 0.0);
+
         // If no valid insertion found, try fallback strategy
         if result.lda <= 0.0 {
-            
             // Find the closest point to any hull point as fallback
             let mut best_fallback = relp::InsertPointResult {
                 lda: 0.1, // Small positive value to ensure insertion
                 best_a: hull[0],
                 best_c: inner_hull[0],
             };
-            
+
             let mut min_distance = f32::INFINITY;
             for &inner_point in &inner_hull {
                 for (_i, &hull_point) in hull.iter().enumerate() {
                     let dx = inner_point.x - hull_point.x;
                     let dy = inner_point.y - hull_point.y;
                     let distance = (dx * dx + dy * dy).sqrt();
-                    
+
                     if distance < min_distance {
                         min_distance = distance;
                         best_fallback.best_a = hull_point;
@@ -227,30 +232,47 @@ fn main() {
                     }
                 }
             }
-            
-            
-            update_hull(&best_fallback, &mut hull, &mut inner_hull, &mut spatial_grid, &mut insert_log);
+
+            update_hull(
+                &best_fallback,
+                &mut hull,
+                &mut inner_hull,
+                &mut spatial_grid,
+                &mut insert_log,
+            );
         } else {
-            update_hull(&result, &mut hull, &mut inner_hull, &mut spatial_grid, &mut insert_log);
+            update_hull(
+                &result,
+                &mut hull,
+                &mut inner_hull,
+                &mut spatial_grid,
+                &mut insert_log,
+            );
         }
-        
+
         if !sl {
             pb.inc(1);
         }
     }
-    
+
     if iteration_count >= max_iterations {
-        println!("Hit iteration limit, possible infinite loop detected. Remaining points: {}", inner_hull.len());
+        println!(
+            "Hit iteration limit, possible infinite loop detected. Remaining points: {}",
+            inner_hull.len()
+        );
         // Force exit with remaining points
         for &remaining_point in &inner_hull {
-            println!("Unprocessed point: ({}, {})", remaining_point.x, remaining_point.y);
+            println!(
+                "Unprocessed point: ({}, {})",
+                remaining_point.x, remaining_point.y
+            );
         }
     }
-    
+
     if !sl {
         pb.finish();
     }
-    
+
     let dist = math::path_dist(&hull);
     let elapsed = start.elapsed();
     if !sl {
@@ -259,16 +281,16 @@ fn main() {
     }
 
     let o_start = Instant::now();
-    
+
     // Get consistent output path
     let output_path = get_output_path();
-    
+
     if no_post() {
         println!("Operation completed, written to file");
         write_to_tsp_file(&hull, &output_path);
         std::process::exit(0);
     }
-    
+
     if !should_edge_swap() {
         edges::eliminate_all_crossings(&mut hull);
     }
@@ -279,24 +301,34 @@ fn main() {
         // Rebuild spatial grid for re-optimization phase
         let mut new_inner_hull = find_lowest_lda_points(&insert_log, hull.len() / 8);
         let mut reopt_spatial_grid = SpatialGrid::new(&new_inner_hull);
-        
+
         remove_points_from_hull(&mut hull, &new_inner_hull);
-        
+
         while !new_inner_hull.is_empty() {
-            let result = insert_point(&hull, &reopt_spatial_grid, adaptive_n);
-            update_hull(&result, &mut hull, &mut new_inner_hull, &mut reopt_spatial_grid, &mut insert_log);
+            let result = insert_point(&hull, &reopt_spatial_grid, adaptive_n, 0.0);
+            update_hull(
+                &result,
+                &mut hull,
+                &mut new_inner_hull,
+                &mut reopt_spatial_grid,
+                &mut insert_log,
+            );
         }
     }
-    println!("{:.2?}", path_dist(&hull));
 
     let o_end = o_start.elapsed().as_millis_f32();
     let new_dist = math::path_dist(&hull);
     if !sl {
-        println!("Improved the tour to dist of {:.2?} with a {:.2?}% improvement using {:.2?} seconds", new_dist, (dist / new_dist) - 1.0, o_end / 1000.0);
+        println!(
+            "Improved the tour to dist of {:.2?} with a {:.2?}% improvement using {:.2?} seconds",
+            new_dist,
+            (dist / new_dist) - 1.0,
+            o_end / 1000.0
+        );
     } else {
         println!("Operation completed, written to file");
     }
-    
+
     // Always write to the consistent output path
     write_to_tsp_file(&hull, &output_path);
 }

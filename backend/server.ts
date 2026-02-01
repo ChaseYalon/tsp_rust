@@ -200,7 +200,7 @@ async function writeFileAndRunSolver(input: Point[]): Promise<void> {
   }
 
   const command = new Deno.Command(executablePath, {
-    args: [inPath],
+    args: [inPath, "--no-post"],
     cwd: APP_ROOT,
   });
 
@@ -212,10 +212,15 @@ async function writeFileAndRunSolver(input: Point[]): Promise<void> {
 }
 
 // --- Serve ---
-const options = {
-  port: 443,
-  cert: await Deno.readTextFile(join(APP_ROOT, "certs", "fullchain.pem")),
-  key: await Deno.readTextFile(join(APP_ROOT, "certs", "privkey.pem")),
-};
+try {
+  const options = {
+    port: 443,
+    cert: await Deno.readTextFile(join(APP_ROOT, "certs", "fullchain.pem")),
+    key: await Deno.readTextFile(join(APP_ROOT, "certs", "privkey.pem")),
+  };
+  Deno.serve(options, app.fetch);
+} catch {
+  const options = {port: 80};
+  Deno.serve(options, app.fetch);
+}
 
-Deno.serve(options, app.fetch);

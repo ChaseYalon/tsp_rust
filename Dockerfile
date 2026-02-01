@@ -69,7 +69,7 @@ WORKDIR /app
 # Copy backend, frontend, certs, and input/output
 COPY ./backend ./backend
 COPY ./frontend ./frontend
-COPY ./certs ./certs
+RUN cp -r ./certs ./certs || true
 COPY ./backend/input ./backend/input
 COPY ./backend/output ./backend/output
 COPY ./solver ./solver
@@ -85,7 +85,7 @@ COPY --from=lkh-builder /app/lkh ./app/lkh
 RUN chmod +x ./app/lkh/lkh
 
 # Expose HTTPS port
-EXPOSE 443
+EXPOSE 80
 
 # Run Deno server
 CMD ["deno", "run", "-A", "backend/server.ts"]

@@ -1,5 +1,5 @@
-use std::simd::Simd;
 use std::hash::{Hash, Hasher};
+use std::simd::Simd;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point {

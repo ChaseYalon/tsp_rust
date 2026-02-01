@@ -90,6 +90,16 @@ html{
     color: #722d2d;
     transition: all 0.25s;
 }
+.opt-but-disabled{
+    background-color: #9e9e9e;
+    color: #5a5a5a;
+    font-size: 1.7rem;
+    border-radius: 1rem;
+    padding: 1rem;
+    margin: 0.4rem;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
 canvas {
     cursor: crosshair;
 }

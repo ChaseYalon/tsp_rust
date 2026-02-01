@@ -1,6 +1,4 @@
 class Point{
-    x;
-    y;
     constructor(x, y){
         this.x = x;
         this.y = y;
@@ -131,12 +129,13 @@ export class Custom_Canvas {
     /**
      * 
      * @param {Point[]} path - path to draw
+     * @param {string} color - color to draw the path (defaults to "black")
      * @returns {void}
      */
-    drawPath(path){
+    drawPath(path, color = "black"){
         for(let i = 0; i < path.length - 1; i++){
-            this.drawLine(path[i].x, path[i].y, path[i + 1].x, path[i + 1].y, "black");
+            this.drawLine(path[i].x, path[i].y, path[i + 1].x, path[i + 1].y, color);
         }
-        this.drawLine(path[path.length - 1].x, path[path.length - 1].y, path[0].x, path[0].y);
+        this.drawLine(path[path.length - 1].x, path[path.length - 1].y, path[0].x, path[0].y, color);
     }
 }

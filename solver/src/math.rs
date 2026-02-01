@@ -1,7 +1,9 @@
 use crate::shared::{self};
-use std::simd::{Simd, StdFloat};
-use std::simd::num::SimdFloat;
+use rand::Rng;
+use rand::rngs::ThreadRng;
 use std::simd::cmp::SimdPartialOrd;
+use std::simd::num::SimdFloat;
+use std::simd::{Simd, StdFloat};
 
 type SimdF32 = Simd<f32, 8>;
 
@@ -14,7 +16,12 @@ pub fn calc_dist(a: shared::Point, b: shared::Point) -> f32 {
 }
 
 #[inline(always)]
-pub fn calc_dist_simd(a_x: shared::SimdF32, a_y: shared::SimdF32, b_x: shared::SimdF32, b_y: shared::SimdF32) -> shared::SimdF32 {
+pub fn calc_dist_simd(
+    a_x: shared::SimdF32,
+    a_y: shared::SimdF32,
+    b_x: shared::SimdF32,
+    b_y: shared::SimdF32,
+) -> shared::SimdF32 {
     let dx = a_x - b_x;
     let dy = a_y - b_y;
     // Fixed: dx² + dy² instead of dx² + dy * dy
@@ -23,9 +30,12 @@ pub fn calc_dist_simd(a_x: shared::SimdF32, a_y: shared::SimdF32, b_x: shared::S
 
 #[inline(always)]
 pub fn point_line(
-    a_x: SimdF32, a_y: SimdF32,
-    b_x: SimdF32, b_y: SimdF32,
-    c_x: SimdF32, c_y: SimdF32,
+    a_x: SimdF32,
+    a_y: SimdF32,
+    b_x: SimdF32,
+    b_y: SimdF32,
+    c_x: SimdF32,
+    c_y: SimdF32,
 ) -> SimdF32 {
     let dx = b_x - a_x;
     let dy = b_y - a_y;
@@ -49,7 +59,7 @@ pub fn point_line(
 
 #[inline(never)]
 pub fn fast_acos(x: SimdF32) -> SimdF32 {
-    let x_abs = x.simd_max(-x);  
+    let x_abs = x.simd_max(-x);
     let sqrt_term = (SimdF32::splat(1.0) - x_abs).sqrt();
     let base = SimdF32::splat(-0.0187293)
         .mul_add(x_abs, SimdF32::splat(0.0742610))
@@ -64,9 +74,14 @@ pub fn fast_acos(x: SimdF32) -> SimdF32 {
 
 #[inline(never)]
 pub fn lda(
-    a_x: SimdF32, a_y: SimdF32,
-    b_x: SimdF32, b_y: SimdF32,
-    c_x: SimdF32, c_y: SimdF32,
+    a_x: SimdF32,
+    a_y: SimdF32,
+    b_x: SimdF32,
+    b_y: SimdF32,
+    c_x: SimdF32,
+    c_y: SimdF32,
+    rng: &mut ThreadRng,
+    rand_dif: f32,
 ) -> SimdF32 {
     let ab = calc_dist_simd(a_x, a_y, b_x, b_y);
     let bc = calc_dist_simd(b_x, b_y, c_x, c_y);
@@ -84,15 +99,20 @@ pub fn lda(
     let acos = fast_acos(cosine);
 
     let dist = point_line(a_x, a_y, b_x, b_y, c_x, c_y);
-    
+
     // Add small epsilon to avoid division by zero
     let epsilon = SimdF32::splat(1e-10);
     let safe_dist = dist.simd_max(epsilon);
-    
-    acos / safe_dist
+    if rand_dif == 0.0 {
+        return acos / safe_dist;
+    }
+    return (acos / safe_dist) + SimdF32::splat(rng.gen_range(-rand_dif..rand_dif));
 }
 
 pub fn path_dist(path: &[shared::Point]) -> f32 {
+    if path.len() == 0 {
+        panic!("[ERROR] Path dist given an empty path");
+    }
     let mut sum = 0.0;
     for i in 0..path.len() - 1 {
         sum += calc_dist(path[i], path[i + 1]);
@@ -110,7 +130,8 @@ pub fn convex_hull(points: &[shared::Point]) -> Vec<shared::Point> {
 
     // Sort points lexicographically (x, then y)
     points.sort_by(|a, b| {
-        a.x.partial_cmp(&b.x).unwrap()
+        a.x.partial_cmp(&b.x)
+            .unwrap()
             .then(a.y.partial_cmp(&b.y).unwrap())
     });
 
@@ -145,5 +166,5 @@ pub fn convex_hull(points: &[shared::Point]) -> Vec<shared::Point> {
     upper.pop();
 
     lower.extend(upper);
-    return lower
+    return lower;
 }

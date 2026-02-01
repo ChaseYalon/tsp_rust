@@ -1,0 +1,14 @@
+NAME : SOLVED
+COMMENT : Solved with tsp_solver (Copyright Chase Yalon)
+TYPE : TSP
+DIMENSION: 8
+EDGE_WEIGHT_TYPE : EUC_2D
+NODE_COORD_SECTION
+1   391   539
+2   719   58
+3   760   558
+4   718   529
+5   687   489
+6   662   448
+7   622   491
+8   497   551

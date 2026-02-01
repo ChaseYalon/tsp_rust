@@ -211,3 +211,87 @@ export function christofidesAlgo(points) {
 function calcDist(a, b){
     return Math.sqrt(((a.x - b.x) * (a.x - b.x)) + ((a.y - b.y) * (a.y - b.y)));
 }
+
+/**
+ * Solve TSP using Held-Karp dynamic programming algorithm
+ * Time: O(n^2 * 2^n), Space: O(n * 2^n)
+ * Much more efficient than naive permutation-based brute force O(n!)
+ * 
+ * @param {Array} points - Array of points with x,y coordinates
+ * @returns {Array} - Optimal path
+ */
+export function solveBruteForce(points) {
+    const n = points.length;
+    if (n <= 1) return points;
+    if (n === 2) return points;
+    
+    // Build distance matrix
+    const dist = Array(n).fill(null).map(() => Array(n).fill(0));
+    for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+            dist[i][j] = calcDist(points[i], points[j]);
+        }
+    }
+    
+    // dp[mask][i] = minimum cost to visit all cities in mask ending at city i
+    // mask is a bitmask where bit j is set if city j has been visited
+    const dp = Array(1 << n).fill(null).map(() => Array(n).fill(Infinity));
+    const parent = Array(1 << n).fill(null).map(() => Array(n).fill(-1));
+    
+    // Start from city 0
+    dp[1][0] = 0;
+    
+    // Iterate through all subsets of cities
+    for (let mask = 1; mask < (1 << n); mask++) {
+        // For each city in the current subset
+        for (let last = 0; last < n; last++) {
+            // Skip if this city is not in the subset or unreachable
+            if (!(mask & (1 << last)) || dp[mask][last] === Infinity) continue;
+            
+            // Try adding each unvisited city
+            for (let next = 0; next < n; next++) {
+                if (mask & (1 << next)) continue; // Already visited
+                
+                const newMask = mask | (1 << next);
+                const newCost = dp[mask][last] + dist[last][next];
+                
+                if (newCost < dp[newMask][next]) {
+                    dp[newMask][next] = newCost;
+                    parent[newMask][next] = last;
+                }
+            }
+        }
+    }
+    
+    // Find the best way to complete the tour (return to start)
+    const fullMask = (1 << n) - 1;
+    let minCost = Infinity;
+    let lastCity = -1;
+    
+    for (let i = 1; i < n; i++) {
+        const cost = dp[fullMask][i] + dist[i][0];
+        if (cost < minCost) {
+            minCost = cost;
+            lastCity = i;
+        }
+    }
+    
+    // Reconstruct path
+    const path = [];
+    let mask = fullMask;
+    let curr = lastCity;
+    
+    while (curr !== -1) {
+        path.push(curr);
+        const prev = parent[mask][curr];
+        if (prev !== -1) {
+            mask ^= (1 << curr); // Remove current city from mask
+        }
+        curr = prev;
+    }
+    
+    path.reverse();
+    
+    // Convert indices back to points
+    return path.map(idx => points[idx]);
+}
